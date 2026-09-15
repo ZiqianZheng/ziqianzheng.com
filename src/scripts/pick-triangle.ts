@@ -29,10 +29,47 @@ const SAMPLE_W = 320;
 /** Max per-channel difference still counted as "the same triangle". */
 const TOLERANCE = 12;
 /** Seeds to try before giving up. */
-const ATTEMPTS = 48;
-/** Reject regions outside this size band, as fractions of the sampled image. */
-const MIN_AREA = 0.012;
-const MAX_AREA = 0.3;
+const ATTEMPTS = 64;
+/** Smallest comfortable touch target, in CSS pixels. */
+const TAP_TARGET = 56;
+/** Never claim more than this share of the screen — that reads as a mistake. */
+const MAX_AREA = 0.32;
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
+
+/**
+ * What counts as "large enough", for this screen.
+ *
+ * Judging by viewport fraction alone is not enough: 1% of a phone is a target
+ * too small to tap, while 1% of a 5K display is enormous. So two constraints,
+ * and a candidate has to satisfy both —
+ *
+ *   prominence   relative: a meaningful share of the screen, so the highlight
+ *                reads as deliberate rather than incidental;
+ *   reachability absolute: a real minimum in CSS pixels, because a finger is
+ *                the same size whatever it is pointing at.
+ *
+ * On a phone the absolute floor dominates and we demand a larger *share* of the
+ * screen; on a desktop the relative floor dominates and the absolute one is met
+ * many times over.
+ */
+export function thresholds(width: number, height: number) {
+	const viewport = width * height;
+	const minSide = Math.min(width, height);
+
+	const wantedSide = Math.max(TAP_TARGET, minSide * 0.15);
+	// A triangle covers roughly half of its bounding box.
+	const wantedArea = wantedSide * wantedSide * 0.5;
+
+	return {
+		// Cap the demand: on a small screen the absolute floor could otherwise
+		// ask for a share so large that nothing ever qualifies.
+		minArea: clamp(wantedArea / viewport, 0.004, 0.02),
+		maxArea: MAX_AREA,
+		/** Shortest bounding-box side the fitted triangle must have, in CSS px. */
+		minSpan: Math.max(TAP_TARGET, minSide * 0.09),
+	};
+}
 
 /** Reusable scratch canvas — allocating one per pointer move would thrash. */
 let scratch: HTMLCanvasElement | null = null;
@@ -140,41 +177,53 @@ export function pickTriangle(canvas: HTMLCanvasElement, random = Math.random): F
 	const img = sample(canvas);
 	if (!img) return null;
 
+	const limits = thresholds(canvas.clientWidth, canvas.clientHeight);
 	const total = img.width * img.height;
 	const visited = new Uint8Array(total);
-	let bestRegion: number[] | null = null;
 
+	// Collect every qualifying region rather than only the largest: the biggest
+	// one can still fail the span check — a long thin sliver has plenty of area
+	// but nowhere comfortable to aim at — and we want the next one down, not
+	// nothing at all.
+	const candidates: number[][] = [];
 	for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
 		const seed = (random() * total) | 0;
 		if (visited[seed]) continue;
 		const region = fill(img, seed, visited);
 		const area = region.length / total;
-		if (area < MIN_AREA || area > MAX_AREA) continue;
-		// Prefer the largest qualifying region: bigger triangles are easier to
-		// see, easier to hit, and read as deliberate rather than incidental.
-		if (!bestRegion || region.length > bestRegion.length) bestRegion = region;
+		if (area < limits.minArea || area > limits.maxArea) continue;
+		candidates.push(region);
 	}
-	if (!bestRegion) return null;
+	if (!candidates.length) return null;
+
+	// Largest first: bigger triangles are easier to see and easier to hit.
+	candidates.sort((a, b) => b.length - a.length);
 
 	const w = img.width;
-	const pts: Point[] = bestRegion.map((i) => ({ x: i % w, y: (i / w) | 0 }));
-	const tri = largestTriangle(hull(pts));
-	if (!tri) return null;
-
-	// Back to CSS pixels. The sample is a uniform scale of the canvas, so one
-	// factor covers both axes.
+	// The sample is a uniform scale of the canvas, so one factor covers both axes.
 	const scale = canvas.clientWidth / img.width;
-	const to = (p: Point): Point => ({ x: p.x * scale, y: p.y * scale });
-	const corners = [to(tri[0]), to(tri[1]), to(tri[2])] as [Point, Point, Point];
 
-	const seedIndex = bestRegion[0] * 4;
-	return {
-		points: corners,
-		centroid: {
-			x: (corners[0].x + corners[1].x + corners[2].x) / 3,
-			y: (corners[0].y + corners[1].y + corners[2].y) / 3,
-		},
-		color: `rgb(${img.data[seedIndex]}, ${img.data[seedIndex + 1]}, ${img.data[seedIndex + 2]})`,
-		coverage: bestRegion.length / total,
-	};
+	for (const region of candidates) {
+		const pts: Point[] = region.map((i) => ({ x: i % w, y: (i / w) | 0 }));
+		const tri = largestTriangle(hull(pts));
+		if (!tri) continue;
+
+		const corners = tri.map((p) => ({ x: p.x * scale, y: p.y * scale })) as [Point, Point, Point];
+		const xs = corners.map((p) => p.x);
+		const ys = corners.map((p) => p.y);
+		const span = Math.min(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+		if (span < limits.minSpan) continue;
+
+		const seedIndex = region[0] * 4;
+		return {
+			points: corners,
+			centroid: {
+				x: (corners[0].x + corners[1].x + corners[2].x) / 3,
+				y: (corners[0].y + corners[1].y + corners[2].y) / 3,
+			},
+			color: `rgb(${img.data[seedIndex]}, ${img.data[seedIndex + 1]}, ${img.data[seedIndex + 2]})`,
+			coverage: region.length / total,
+		};
+	}
+	return null;
 }
