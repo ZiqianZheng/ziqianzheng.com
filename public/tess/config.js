@@ -57,9 +57,38 @@
 
 	var canvas = null;
 	function getCanvas() {
-		if (!canvas) canvas = document.getElementById('tessellation-canvas');
+		if (!canvas) {
+			canvas = document.getElementById('tessellation-canvas');
+			/**
+			 * Claim the WebGL context before the engine does, with the engine's
+			 * own flags but `preserveDrawingBuffer` turned on.
+			 *
+			 * A second getContext() for the same type returns the first context
+			 * and ignores the new attributes, so whoever asks first decides. We
+			 * need the buffer preserved in order to sample the rendered image
+			 * later and pick out a triangle; without it the canvas reads back
+			 * blank once the frame has been composited.
+			 */
+			if (canvas) {
+				canvas.getContext('webgl', {
+					alpha: false,
+					antialias: true,
+					depth: false,
+					stencil: false,
+					preserveDrawingBuffer: true,
+				});
+			}
+		}
 		return canvas;
 	}
+
+	/**
+	 * Freeze control. The engine reads the zooming speed afresh every frame and
+	 * multiplies it by the frame delta, so reporting 0 makes each frame's zoom
+	 * the identity transform — the scene stops dead and resumes exactly where it
+	 * left off, with no state to save or restore.
+	 */
+	var paused = false;
 
 	/** Pointer state, in normalised 0–1 canvas coordinates. */
 	var mouse = [0.5, 0.5];
@@ -110,6 +139,7 @@
 
 		Range: {
 			getValue: function (id) {
+				if (id === 'zooming-speed-range-id' && paused) return 0;
 				return RANGES[id];
 			},
 			setValue: noop,
@@ -163,6 +193,20 @@
 		Sections: { setVisibility: noop },
 		Picture: { setVisibility: noop },
 		LoadingSpinner: { show: noop, hide: noop },
+	};
+
+	/** Small public surface for the page's own interaction code. */
+	window.tessellation = {
+		pause: function () {
+			paused = true;
+		},
+		resume: function () {
+			paused = false;
+		},
+		isPaused: function () {
+			return paused;
+		},
+		getCanvas: getCanvas,
 	};
 
 	// --- wire real browser events into the observers the engine registered ---

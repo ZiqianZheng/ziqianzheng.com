@@ -2,7 +2,7 @@
 /**
  * Arrival: the tessellation fills the whole screen.
  *
- * The renderer is a vendored build of tessellation-webgl by Jeremie Piellard
+ * The renderer is a vendored build of tessellation-webgl by Jérémie Piellard
  * (MIT — see /tess/LICENSE and `design/tessellation.md`). It lives in `public/`
  * rather than the Astro pipeline because it is a prebuilt webpack bundle that
  * spawns its own Web Worker, and both need stable, absolute URLs.
@@ -30,6 +30,16 @@ import '../styles/tokens.css';
 		<canvas id="tessellation-canvas" aria-hidden="true"></canvas>
 
 		<!--
+			The way in. Hidden until the scene freezes, then a single triangle is
+			outlined and named. Purely decorative for assistive tech — the real
+			link is the always-present one below, which is also the no-JS path.
+		-->
+		<div id="gate" hidden>
+			<svg id="gate-svg" aria-hidden="true"><polygon id="gate-shape"></polygon></svg>
+			<a id="gate-label" href="/about">about me</a>
+		</div>
+
+		<!--
 			The canvas carries no text, so this is the page's only real content.
 			A genuine top-level heading rather than a styled link: it is what a
 			crawler and a screen reader have to work with.
@@ -37,11 +47,9 @@ import '../styles/tokens.css';
 		<header class="mark">
 			<h1>Ziqian Zheng</h1>
 			<p>a wanderer</p>
+			<!-- Always reachable: keyboard, screen readers, and JS-disabled. -->
+			<a class="mark-link" href="/about">about me</a>
 		</header>
-
-		<noscript>
-			<p class="fallback">Ziqian Zheng — a wanderer.</p>
-		</noscript>
 
 		<style is:global>
 			*,
@@ -110,15 +118,194 @@ import '../styles/tokens.css';
 				text-transform: lowercase;
 				opacity: 0.78;
 			}
+			/*
+			 * Visually hidden but focusable, so the page is navigable by keyboard
+			 * and without JavaScript. Becomes visible on focus.
+			 */
+			.mark-link {
+				position: absolute;
+				width: 1px;
+				height: 1px;
+				overflow: hidden;
+				clip-path: inset(50%);
+				white-space: nowrap;
+			}
+			.mark-link:focus-visible {
+				position: static;
+				width: auto;
+				height: auto;
+				clip-path: none;
+				display: inline-block;
+				margin-top: 0.9em;
+				padding: 0.4em 0.8em;
+				border: 1px solid currentColor;
+				font-size: 0.75rem;
+				letter-spacing: 0.24em;
+				text-transform: lowercase;
+				color: inherit;
+			}
 
-			.fallback {
+			/* --- the gate ------------------------------------------------- */
+			#gate {
 				position: fixed;
-				inset: auto auto var(--gutter) var(--gutter);
-				margin: 0;
+				inset: 0;
+				z-index: 9;
+				pointer-events: none;
+				opacity: 0;
+				transition: opacity 420ms ease;
+			}
+			#gate.on {
+				opacity: 1;
+			}
+			#gate-svg {
+				position: absolute;
+				inset: 0;
+				width: 100%;
+				height: 100%;
+				overflow: visible;
+			}
+			#gate-shape {
+				fill: var(--bone-light);
+				stroke: rgba(12, 26, 16, 0.55);
+				stroke-width: 1.5;
+				stroke-linejoin: round;
+				pointer-events: auto;
+				cursor: pointer;
+				/* Pulse rather than a hard flash — the scene is already still, so
+				   a slow breath is enough to draw the eye. */
+				animation: gate-pulse 1.9s ease-in-out infinite;
+			}
+			@keyframes gate-pulse {
+				0%,
+				100% {
+					fill-opacity: 0.32;
+				}
+				50% {
+					fill-opacity: 0.86;
+				}
+			}
+			#gate-label {
+				position: absolute;
+				transform: translate(-50%, -50%);
+				pointer-events: auto;
+				cursor: pointer;
+				font-family: var(--font-display);
+				font-size: clamp(0.8rem, 1.4vw, 1.05rem);
+				letter-spacing: 0.3em;
+				text-transform: lowercase;
+				text-decoration: none;
+				color: var(--bone-light);
+				text-shadow:
+					0 0 3px rgba(12, 26, 16, 0.75),
+					0 2px 26px rgba(12, 26, 16, 0.8);
+				white-space: nowrap;
+			}
+			#gate-label::after {
+				content: ' →';
+				opacity: 0.7;
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				#gate {
+					transition: none;
+				}
+				#gate-shape {
+					animation: none;
+					fill-opacity: 0.7;
+				}
 			}
 		</style>
 
 		<script is:inline src="/tess/config.js"></script>
 		<script is:inline src="/tess/main.js"></script>
+
+		<script>
+			import { pickTriangle } from '../scripts/pick-triangle';
+
+			type Tessellation = {
+				pause(): void;
+				resume(): void;
+				isPaused(): boolean;
+				getCanvas(): HTMLCanvasElement | null;
+			};
+			const tess = (window as unknown as { tessellation?: Tessellation }).tessellation;
+
+			const gate = document.getElementById('gate')!;
+			const shape = document.getElementById('gate-shape')!;
+			const label = document.getElementById('gate-label') as HTMLAnchorElement;
+			const canvas = document.getElementById('tessellation-canvas') as HTMLCanvasElement | null;
+
+			/** How long the pointer must be still before the scene resumes. */
+			const IDLE_MS = 3000;
+
+			let shown = false;
+			let idleTimer: number | undefined;
+
+			function place() {
+				if (!canvas || !tess) return;
+				const found = pickTriangle(canvas);
+				// No qualifying triangle this frame — stay frozen and try again on
+				// the next pointer move rather than flashing something arbitrary.
+				if (!found) return;
+
+				shape.setAttribute('points', found.points.map((p) => `${p.x},${p.y}`).join(' '));
+
+				// Keep the label off the very edge, where it would be clipped.
+				const pad = 80;
+				const x = Math.min(Math.max(found.centroid.x, pad), canvas.clientWidth - pad);
+				const y = Math.min(Math.max(found.centroid.y, 40), canvas.clientHeight - 40);
+				label.style.left = `${x}px`;
+				label.style.top = `${y}px`;
+
+				gate.hidden = false;
+				// Next frame, so the transition has a from-state to animate from.
+				requestAnimationFrame(() => gate.classList.add('on'));
+				shown = true;
+			}
+
+			function freeze() {
+				if (!tess) return;
+				if (!shown) {
+					tess.pause();
+					// Two frames: one for the engine to render with zoom at zero,
+					// one to be sure that frame reached the drawing buffer before
+					// we read it back.
+					requestAnimationFrame(() => requestAnimationFrame(place));
+				}
+				window.clearTimeout(idleTimer);
+				idleTimer = window.setTimeout(thaw, IDLE_MS);
+			}
+
+			function thaw() {
+				if (!tess) return;
+				window.clearTimeout(idleTimer);
+				gate.classList.remove('on');
+				shown = false;
+				tess.resume();
+				// Leave the node in place until the fade finishes.
+				window.setTimeout(() => {
+					if (!shown) gate.hidden = true;
+				}, 420);
+			}
+
+			if (tess && canvas) {
+				addEventListener('pointermove', freeze, { passive: true });
+				addEventListener('pointerdown', freeze, { passive: true });
+				// Coordinates are in CSS pixels against the old size, so drop the
+				// highlight rather than let it drift off the triangle.
+				addEventListener('resize', () => {
+					if (shown) thaw();
+				});
+				shape.addEventListener('click', () => {
+					location.href = '/about';
+				});
+			}
+
+			// Background tabs suspend requestAnimationFrame, so the freeze→place
+			// chain cannot run under automated capture. Expose the steps directly.
+			if (import.meta.env.DEV) {
+				(window as any).__gate = { place, freeze, thaw, pickTriangle, canvas };
+			}
+		</script>
 	</body>
 </html>

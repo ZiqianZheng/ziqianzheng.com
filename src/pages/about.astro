@@ -1,0 +1,296 @@
+---
+/**
+ * About.
+ *
+ * Deliberately calm: no canvas, no motion. The arrival screen carries the
+ * spectacle, and this is the page someone reads.
+ *
+ * Note: education is listed without dates on purpose. The source material said
+ * the PhD was complete while also listing it as "– present", and inventing an
+ * end date would be worse than omitting one. See task "Fix stale CV facts".
+ */
+import { Image } from 'astro:assets';
+import profileImage from '../assets/site/profile.jpg';
+import { education, links, profile, researchApplications, researchInterests } from '../data/profile';
+import '../styles/tokens.css';
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>About — Ziqian Zheng</title>
+		<meta name="description" content={profile.intro} />
+		<link rel="canonical" href="https://www.ziqianzheng.com/about" />
+		<link rel="icon" href="/avatar.png" />
+	</head>
+	<body>
+		<a class="back" href="/">← back</a>
+
+		<main>
+			<header>
+				<p class="eyebrow">About</p>
+				<h1>Ziqian Zheng</h1>
+				<p class="role">{profile.role} at {profile.org.name}</p>
+			</header>
+
+			<div class="lede">
+				<Image
+					class="portrait"
+					src={profileImage}
+					alt="Ziqian Zheng"
+					widths={[280, 560]}
+					sizes="(max-width: 46rem) 40vw, 280px"
+					loading="eager"
+				/>
+				<div>
+					<p>
+						I am a software engineer at <a href={profile.org.url}>WeRide</a>. I completed my PhD in
+						Industrial Engineering at the{' '}
+						<a href="https://www.wisc.edu/">University of Wisconsin–Madison</a>, where I was a member
+						of <a href="https://kaibo.ie.wisc.edu/people.html">SIDA</a> under the guidance of Prof.{' '}
+						<a href="https://kaibo.ie.wisc.edu/">Kaibo Liu</a>.
+					</p>
+					<p>
+						Before that I received my B.Eng. in Automation at{' '}
+						<a href="http://en.xjtu.edu.cn/">Xi'an Jiaotong University</a>, where I was advised by
+						Prof. <a href="https://gr.xjtu.edu.cn/en/web/chaoboyan/english">Chao-Bo Yan</a>.
+					</p>
+				</div>
+			</div>
+
+			<section>
+				<h2>Education</h2>
+				<ul class="rows">
+					{
+						education.map((e) => (
+							<li>
+								<span class="key">{e.degree}</span>
+								<div>
+									<p class="primary">{e.field}</p>
+									<p class="secondary">{e.school}</p>
+									{e.note && <p class="secondary">{e.note.split(',')[0]}</p>}
+								</div>
+							</li>
+						))
+					}
+				</ul>
+			</section>
+
+			<section class="split">
+				<div>
+					<h2>Research interests</h2>
+					<ul class="plain">{researchInterests.map((i) => <li>{i}</li>)}</ul>
+				</div>
+				<div>
+					<h2>Applications</h2>
+					<ul class="plain">{researchApplications.map((i) => <li>{i}</li>)}</ul>
+				</div>
+			</section>
+
+			<section>
+				<h2>Elsewhere</h2>
+				<ul class="links">
+					<li><a href={links.scholar}>Google Scholar</a></li>
+					<li><a href={links.linkedin}>LinkedIn</a></li>
+					<li><a href={links.cv}>Curriculum vitae</a></li>
+					<li><a href={`mailto:${profile.email}`}>{profile.email}</a></li>
+				</ul>
+			</section>
+		</main>
+
+		<footer>
+			<p>
+				The arrival screen uses{' '}
+				<a href="https://github.com/piellardj/tessellation-webgl">tessellation-webgl</a> by Jérémie
+				Piellard, used under the MIT licence.
+			</p>
+		</footer>
+
+		<style is:global>
+			*,
+			*::before,
+			*::after {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				min-height: 100svh;
+				background: var(--sky-far);
+				color: var(--bone-light);
+				font-family: var(--font-body);
+				line-height: 1.65;
+				/* A quiet echo of the arrival screen's palette, without motion. */
+				background-image: radial-gradient(
+					120% 80% at 80% -10%,
+					rgba(46, 204, 74, 0.16),
+					transparent 60%
+				);
+				background-attachment: fixed;
+			}
+			a {
+				color: inherit;
+				text-decoration-color: rgba(250, 244, 229, 0.35);
+				text-underline-offset: 0.2em;
+			}
+			a:hover {
+				text-decoration-color: var(--axis-green);
+			}
+
+			.back,
+			.eyebrow,
+			h2,
+			.key,
+			footer {
+				font-family: var(--font-display);
+				letter-spacing: 0.24em;
+				text-transform: lowercase;
+			}
+
+			.back {
+				position: fixed;
+				top: var(--gutter);
+				left: var(--gutter);
+				font-size: 0.75rem;
+				text-decoration: none;
+				opacity: 0.75;
+			}
+			.back:hover {
+				opacity: 1;
+			}
+
+			main {
+				max-width: 44rem;
+				margin: 0 auto;
+				padding: clamp(6rem, 18vh, 11rem) var(--gutter) 3rem;
+			}
+
+			.eyebrow {
+				margin: 0;
+				font-size: 0.6875rem;
+				opacity: 0.6;
+			}
+			h1 {
+				font-family: var(--font-display);
+				font-weight: 400;
+				font-size: clamp(2.2rem, 7vw, 3.4rem);
+				letter-spacing: -0.01em;
+				margin: 0.25em 0 0.15em;
+			}
+			.role {
+				margin: 0;
+				font-size: 0.95rem;
+				opacity: 0.7;
+			}
+
+			.lede {
+				display: grid;
+				grid-template-columns: 180px 1fr;
+				gap: clamp(1.5rem, 4vw, 2.5rem);
+				align-items: start;
+				margin: clamp(2.5rem, 7vw, 4rem) 0;
+			}
+			.portrait {
+				width: 100%;
+				height: auto;
+				display: block;
+				/* Matches the geometry of the arrival screen rather than the
+				   rounded-avatar convention. */
+				clip-path: polygon(0 0, 100% 6%, 100% 100%, 0 94%);
+			}
+			.lede p {
+				margin: 0 0 1em;
+			}
+			@media (max-width: 34rem) {
+				.lede {
+					grid-template-columns: 1fr;
+				}
+				.portrait {
+					max-width: 190px;
+				}
+			}
+
+			section {
+				margin: clamp(2.5rem, 7vw, 4rem) 0;
+			}
+			h2 {
+				font-size: 0.6875rem;
+				font-weight: 400;
+				opacity: 0.6;
+				margin: 0 0 1.2em;
+				padding-bottom: 0.9em;
+				border-bottom: 1px solid rgba(250, 244, 229, 0.14);
+			}
+
+			.rows,
+			.plain,
+			.links {
+				list-style: none;
+				margin: 0;
+				padding: 0;
+			}
+			.rows li {
+				display: grid;
+				grid-template-columns: 5.5rem 1fr;
+				gap: 1rem;
+				padding: 0.8rem 0;
+			}
+			.key {
+				font-size: 0.6875rem;
+				opacity: 0.55;
+				padding-top: 0.35em;
+			}
+			.primary {
+				margin: 0;
+			}
+			.secondary {
+				margin: 0;
+				font-size: 0.9rem;
+				opacity: 0.6;
+			}
+
+			.split {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+				gap: clamp(1.5rem, 5vw, 3rem);
+			}
+			.plain li {
+				padding: 0.35rem 0;
+			}
+			.plain li::before {
+				content: '';
+				display: inline-block;
+				width: 0.45em;
+				height: 0.45em;
+				margin-right: 0.8em;
+				vertical-align: middle;
+				background: var(--axis-green);
+			}
+
+			.links li {
+				padding: 0.45rem 0;
+			}
+
+			footer {
+				max-width: 44rem;
+				margin: 0 auto;
+				padding: 2rem var(--gutter) 3rem;
+				border-top: 1px solid rgba(250, 244, 229, 0.12);
+				font-size: 0.625rem;
+				opacity: 0.5;
+				text-transform: none;
+				letter-spacing: 0.08em;
+			}
+			footer p {
+				margin: 0;
+			}
+			@media (max-width: 34rem) {
+				.rows li {
+					grid-template-columns: 1fr;
+					gap: 0.2rem;
+				}
+			}
+		</style>
+	</body>
+</html>
