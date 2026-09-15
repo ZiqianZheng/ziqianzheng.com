@@ -11,6 +11,15 @@
  * the moment it executes, so neither is deferred and both sit at end of body.
  */
 import '../styles/tokens.css';
+
+/**
+ * The about page is still a draft (`src/drafts/about.astro`, served only by
+ * `astro dev`). Until it ships, the live arrival screen must not offer a way in
+ * — a highlighted triangle promising "about me" and then 404ing is worse than
+ * no triangle at all. So the whole gate, and the keyboard link beside the
+ * wordmark, exist only while developing.
+ */
+const SHOW_ABOUT = import.meta.env.DEV;
 ---
 
 <!doctype html>
@@ -34,10 +43,18 @@ import '../styles/tokens.css';
 			outlined and named. Purely decorative for assistive tech — the real
 			link is the always-present one below, which is also the no-JS path.
 		-->
-		<div id="gate" hidden>
-			<svg id="gate-svg" aria-hidden="true"><polygon id="gate-shape"></polygon></svg>
-			<a id="gate-label" href="/about">about me</a>
-		</div>
+		{
+			SHOW_ABOUT && (
+				<div id="gate" hidden>
+					<svg id="gate-svg" aria-hidden="true">
+						<polygon id="gate-shape" />
+					</svg>
+					<a id="gate-label" href="/about">
+						about me
+					</a>
+				</div>
+			)
+		}
 
 		<!--
 			The canvas carries no text, so this is the page's only real content.
@@ -47,8 +64,12 @@ import '../styles/tokens.css';
 		<header class="mark">
 			<h1>Ziqian Zheng</h1>
 			<p>a wanderer</p>
-			<!-- Always reachable: keyboard, screen readers, and JS-disabled. -->
-			<a class="mark-link" href="/about">about me</a>
+			{/* Reachable by keyboard, screen readers, and with JS disabled. */}
+			{SHOW_ABOUT && (
+				<a class="mark-link" href="/about">
+					about me
+				</a>
+			)}
 		</header>
 
 		<style is:global>
@@ -230,9 +251,11 @@ import '../styles/tokens.css';
 			};
 			const tess = (window as unknown as { tessellation?: Tessellation }).tessellation;
 
-			const gate = document.getElementById('gate')!;
-			const shape = document.getElementById('gate-shape')!;
-			const label = document.getElementById('gate-label') as HTMLAnchorElement;
+			// Absent in production while the about page is still a draft, so every
+			// use below is guarded rather than asserted.
+			const gate = document.getElementById('gate');
+			const shape = document.getElementById('gate-shape');
+			const label = document.getElementById('gate-label') as HTMLAnchorElement | null;
 			const canvas = document.getElementById('tessellation-canvas') as HTMLCanvasElement | null;
 
 			/** How long the pointer must be still before the scene resumes. */
@@ -242,7 +265,7 @@ import '../styles/tokens.css';
 			let idleTimer: number | undefined;
 
 			function place() {
-				if (!canvas || !tess) return;
+				if (!canvas || !tess || !gate || !shape || !label) return;
 				const found = pickTriangle(canvas);
 				// No qualifying triangle this frame — stay frozen and try again on
 				// the next pointer move rather than flashing something arbitrary.
@@ -277,7 +300,7 @@ import '../styles/tokens.css';
 			}
 
 			function thaw() {
-				if (!tess) return;
+				if (!tess || !gate) return;
 				window.clearTimeout(idleTimer);
 				gate.classList.remove('on');
 				shown = false;
@@ -288,7 +311,7 @@ import '../styles/tokens.css';
 				}, 420);
 			}
 
-			if (tess && canvas) {
+			if (tess && canvas && gate && shape && label) {
 				addEventListener('pointermove', freeze, { passive: true });
 				addEventListener('pointerdown', freeze, { passive: true });
 				// Coordinates are in CSS pixels against the old size, so drop the

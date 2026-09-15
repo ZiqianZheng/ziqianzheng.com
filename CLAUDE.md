@@ -81,6 +81,12 @@ recruiters and Google Scholar. Never move real content into the canvas.
 - `src/scene/garden.ts` — the procedural scene. Boxes only; no textures, no models.
 - `src/components/Garden.astro` — mounts the scene as a fixed backdrop, with a CSS
   gradient fallback that stands in when WebGL is unavailable.
+- `src/drafts/` — pages that are being worked on but must not be public yet.
+  `src/pages/[draft].astro` serves them at their real URL under `astro dev` and returns
+  no paths in a production build, so they are on `main` and reviewable locally without
+  appearing on the domain. Links *to* a draft need an `import.meta.env.DEV` guard too —
+  see `SHOW_ABOUT` in `index.astro` — or the live site offers a 404. Note that Astro
+  hoists `getStaticPaths` into its own scope, so it cannot read module-level variables.
 - `src/layouts/Base.astro` — shell: backdrop, fixed HUD furniture, content slot.
 - Blog posts stay in `src/content/blog/` as Markdown; schema in `src/content.config.ts`.
   Routing, the index, RSS and sitemap all follow automatically from adding a file.

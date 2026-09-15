@@ -1,0 +1,33 @@
+---
+/**
+ * Drafts — reachable while developing, never published.
+ *
+ * `getStaticPaths` returns nothing in a production build, so these URLs simply
+ * do not exist on the live site; `astro dev` resolves the same function and
+ * serves them normally. That keeps work-in-progress pages on `main`, editable
+ * and reviewable at localhost, without a branch to remember or a half-finished
+ * page appearing on the domain.
+ *
+ * To publish a draft: move its file from `src/drafts/` into `src/pages/`, drop
+ * it from both lists below, and remove whichever `import.meta.env.DEV` guard
+ * hides the links to it (currently in `index.astro`).
+ */
+import About from '../drafts/about.astro';
+
+export function getStaticPaths() {
+	// Astro hoists this function into its own scope, so it cannot reference
+	// anything declared elsewhere in the frontmatter — the slugs have to be
+	// written out here rather than derived from the component map below.
+	if (!import.meta.env.DEV) return [];
+	return [{ params: { draft: 'about' } }];
+}
+
+const drafts = { about: About } as const;
+const Draft = drafts[Astro.params.draft as keyof typeof drafts];
+
+if (!Draft) {
+	return new Response(null, { status: 404 });
+}
+---
+
+<Draft />
