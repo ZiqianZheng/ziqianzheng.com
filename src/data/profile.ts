@@ -5,12 +5,14 @@
 
 export const profile = {
 	name: 'Ziqian Zheng',
+	/** Past role. The site does not currently state a present one. */
 	role: 'Software Engineer',
 	org: { name: 'WeRide', url: 'https://www.weride.ai/' },
 	email: 'zzheng92@wisc.edu',
 	intro:
-		'Software engineer at WeRide. PhD in Industrial Engineering from the University of Wisconsin–Madison, ' +
-		'where I worked on process monitoring, engineering-informed machine learning, and computational genomics.',
+		'Previously a software engineer at WeRide. PhD in Industrial Engineering from the ' +
+		'University of Wisconsin–Madison, working on process monitoring, engineering-informed ' +
+		'machine learning, and computational genomics.',
 } as const;
 
 export const links = {

@@ -9,9 +9,7 @@
  * the PhD was complete while also listing it as "– present", and inventing an
  * end date would be worse than omitting one. See task "Fix stale CV facts".
  */
-import { Image } from 'astro:assets';
-import profileImage from '../assets/site/profile.jpg';
-import { education, links, profile, researchApplications, researchInterests } from '../data/profile';
+import { education, links, profile } from '../data/profile';
 import '../styles/tokens.css';
 ---
 
@@ -32,21 +30,11 @@ import '../styles/tokens.css';
 			<header>
 				<p class="eyebrow">About</p>
 				<h1>Ziqian Zheng</h1>
-				<p class="role">{profile.role} at {profile.org.name}</p>
 			</header>
 
 			<div class="lede">
-				<Image
-					class="portrait"
-					src={profileImage}
-					alt="Ziqian Zheng"
-					widths={[280, 560]}
-					sizes="(max-width: 46rem) 40vw, 280px"
-					loading="eager"
-				/>
-				<div>
-					<p>
-						I am a software engineer at <a href={profile.org.url}>WeRide</a>. I completed my PhD in
+				<p>
+						I was a software engineer at <a href={profile.org.url}>WeRide</a>. I completed my PhD in
 						Industrial Engineering at the{' '}
 						<a href="https://www.wisc.edu/">University of Wisconsin–Madison</a>, where I was a member
 						of <a href="https://kaibo.ie.wisc.edu/people.html">SIDA</a> under the guidance of Prof.{' '}
@@ -55,9 +43,8 @@ import '../styles/tokens.css';
 					<p>
 						Before that I received my B.Eng. in Automation at{' '}
 						<a href="http://en.xjtu.edu.cn/">Xi'an Jiaotong University</a>, where I was advised by
-						Prof. <a href="https://gr.xjtu.edu.cn/en/web/chaoboyan/english">Chao-Bo Yan</a>.
-					</p>
-				</div>
+					Prof. <a href="https://gr.xjtu.edu.cn/en/web/chaoboyan/english">Chao-Bo Yan</a>.
+				</p>
 			</div>
 
 			<section>
@@ -76,17 +63,6 @@ import '../styles/tokens.css';
 						))
 					}
 				</ul>
-			</section>
-
-			<section class="split">
-				<div>
-					<h2>Research interests</h2>
-					<ul class="plain">{researchInterests.map((i) => <li>{i}</li>)}</ul>
-				</div>
-				<div>
-					<h2>Applications</h2>
-					<ul class="plain">{researchApplications.map((i) => <li>{i}</li>)}</ul>
-				</div>
 			</section>
 
 			<section>
@@ -178,37 +154,12 @@ import '../styles/tokens.css';
 				letter-spacing: -0.01em;
 				margin: 0.25em 0 0.15em;
 			}
-			.role {
-				margin: 0;
-				font-size: 0.95rem;
-				opacity: 0.7;
-			}
-
 			.lede {
-				display: grid;
-				grid-template-columns: 180px 1fr;
-				gap: clamp(1.5rem, 4vw, 2.5rem);
-				align-items: start;
 				margin: clamp(2.5rem, 7vw, 4rem) 0;
-			}
-			.portrait {
-				width: 100%;
-				height: auto;
-				display: block;
-				/* Matches the geometry of the arrival screen rather than the
-				   rounded-avatar convention. */
-				clip-path: polygon(0 0, 100% 6%, 100% 100%, 0 94%);
+				font-size: 1.05rem;
 			}
 			.lede p {
 				margin: 0 0 1em;
-			}
-			@media (max-width: 34rem) {
-				.lede {
-					grid-template-columns: 1fr;
-				}
-				.portrait {
-					max-width: 190px;
-				}
 			}
 
 			section {
@@ -224,7 +175,6 @@ import '../styles/tokens.css';
 			}
 
 			.rows,
-			.plain,
 			.links {
 				list-style: none;
 				margin: 0;
@@ -248,24 +198,6 @@ import '../styles/tokens.css';
 				margin: 0;
 				font-size: 0.9rem;
 				opacity: 0.6;
-			}
-
-			.split {
-				display: grid;
-				grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-				gap: clamp(1.5rem, 5vw, 3rem);
-			}
-			.plain li {
-				padding: 0.35rem 0;
-			}
-			.plain li::before {
-				content: '';
-				display: inline-block;
-				width: 0.45em;
-				height: 0.45em;
-				margin-right: 0.8em;
-				vertical-align: middle;
-				background: var(--axis-green);
 			}
 
 			.links li {

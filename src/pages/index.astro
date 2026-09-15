@@ -185,24 +185,37 @@ const SHOW_ABOUT = import.meta.env.DEV;
 				height: 100%;
 				overflow: visible;
 			}
+			/*
+			 * Blinks between the region's own colour and solid black, rather than
+			 * washing it with a tint. Against a field this busy a wash barely
+			 * registers; dropping the shape to black is unmistakable, and it keeps
+			 * the artwork's own colour as the other half of the blink instead of
+			 * covering it up.
+			 */
 			#gate-shape {
-				fill: var(--bone-light);
-				stroke: rgba(12, 26, 16, 0.55);
-				stroke-width: 1.5;
+				fill: #000;
+				fill-opacity: 0;
+				stroke: rgba(250, 244, 229, 0.92);
+				stroke-width: 2;
 				stroke-linejoin: round;
+				paint-order: stroke;
 				pointer-events: auto;
 				cursor: pointer;
-				/* Pulse rather than a hard flash — the scene is already still, so
-				   a slow breath is enough to draw the eye. */
-				animation: gate-pulse 1.9s ease-in-out infinite;
+				animation: gate-blink 1.5s ease-in-out infinite;
 			}
-			@keyframes gate-pulse {
+			@keyframes gate-blink {
+				/* Long holds at each end with quick crossings, so it reads as a
+				   blink rather than a breath. */
 				0%,
-				100% {
-					fill-opacity: 0.32;
+				42% {
+					fill-opacity: 0;
 				}
-				50% {
-					fill-opacity: 0.86;
+				50%,
+				92% {
+					fill-opacity: 0.94;
+				}
+				100% {
+					fill-opacity: 0;
 				}
 			}
 			#gate-label {
@@ -232,7 +245,7 @@ const SHOW_ABOUT = import.meta.env.DEV;
 				}
 				#gate-shape {
 					animation: none;
-					fill-opacity: 0.7;
+					fill-opacity: 0.55;
 				}
 			}
 		</style>
@@ -241,7 +254,7 @@ const SHOW_ABOUT = import.meta.env.DEV;
 		<script is:inline src="/tess/main.js"></script>
 
 		<script>
-			import { pickTriangle, thresholds } from '../scripts/pick-triangle';
+			import { pickRegion, thresholds, type Point } from '../scripts/pick-region';
 
 			type Tessellation = {
 				pause(): void;
@@ -263,15 +276,18 @@ const SHOW_ABOUT = import.meta.env.DEV;
 
 			let shown = false;
 			let idleTimer: number | undefined;
+			/** Where the last offer sat, so the next one lands somewhere else. */
+			let lastCentroid: Point | null = null;
 
 			function place() {
 				if (!canvas || !tess || !gate || !shape || !label) return;
-				const found = pickTriangle(canvas);
-				// No qualifying triangle this frame — stay frozen and try again on
-				// the next pointer move rather than flashing something arbitrary.
+				const found = pickRegion(canvas, { avoid: lastCentroid });
+				// Nothing suitable in this frame — stay frozen and try again on the
+				// next pointer move rather than flashing something arbitrary.
 				if (!found) return;
+				lastCentroid = found.centroid;
 
-				shape.setAttribute('points', found.points.map((p) => `${p.x},${p.y}`).join(' '));
+				shape.setAttribute('points', found.polygon.map((p) => `${p.x},${p.y}`).join(' '));
 
 				// Keep the label off the very edge, where it would be clipped.
 				const pad = 80;
@@ -327,7 +343,7 @@ const SHOW_ABOUT = import.meta.env.DEV;
 			// Background tabs suspend requestAnimationFrame, so the freeze→place
 			// chain cannot run under automated capture. Expose the steps directly.
 			if (import.meta.env.DEV) {
-				(window as any).__gate = { place, freeze, thaw, pickTriangle, thresholds, canvas };
+				(window as any).__gate = { place, freeze, thaw, pickRegion, thresholds, canvas };
 			}
 		</script>
 	</body>
