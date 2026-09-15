@@ -40,6 +40,24 @@ not by a still frame: almost every colour on screen is the product of the walk r
 than the root colour, so the root is misleading. See `design/tessellation.md` for the
 calibration table.
 
+## Workflow — verify locally, then push
+
+**Pushing to `main` publishes.** The Actions workflow deploys every push straight to the
+live domain, so there is no staging step between a push and the public site.
+
+So: make the change, run `npm run build` to confirm it compiles, verify what can be
+verified, then **stop and let Ziqian review it on localhost** before pushing. Committing
+locally is fine; the push is the gate.
+
+This matters more than it looks, because much of this site cannot be checked headlessly.
+Chrome suspends `requestAnimationFrame`, `IntersectionObserver`, `ResizeObserver` and CSS
+transitions in background tabs — so the tessellation renders only its first frame, the
+freeze-and-choose interaction never fires, and canvas screenshots capture a stale
+composite. Anything animated or interactive genuinely needs a human in a focused window.
+
+Where automated checks *are* possible, prefer them: `scripts/measure-palette.mjs` for
+colour, and synthetic-canvas tests for triangle detection (see `design/tessellation.md`).
+
 ## Commands
 
 - `npm run dev` — dev server at http://localhost:4321. When Claude starts it, prefer
