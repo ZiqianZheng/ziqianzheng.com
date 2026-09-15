@@ -1,0 +1,360 @@
+---
+import Base from '../layouts/Base.astro';
+import {
+	education,
+	links,
+	profile,
+	publications,
+	researchApplications,
+	researchInterests,
+	teaching,
+} from '../data/profile';
+import { SITE_DESCRIPTION } from '../consts';
+
+const statusLabel: Record<string, string> = {
+	published: 'Published',
+	accepted: 'Accepted',
+	'in press': 'In press',
+	'under revision': 'Under revision',
+	'in preparation': 'In preparation',
+};
+
+const sorted = [...publications].sort((a, b) => {
+	const rank = (s: string) => (s === 'in preparation' || s === 'under revision' ? 1 : 0);
+	return rank(a.status) - rank(b.status) || (b.year ?? 9999) - (a.year ?? 9999);
+});
+---
+
+<Base title={profile.name} description={SITE_DESCRIPTION} section="home">
+	<section class="hero" data-section="home">
+		<p class="label"><span class="tick"></span>{profile.role} · {profile.org.name}</p>
+		<h1>{profile.name}</h1>
+		{/* Explicit {' '} before each link: a line break before an element gets
+		    trimmed, which silently glues words together ("at theUniversity"). */}
+		<p class="lede">
+			I am a software engineer at <a href={profile.org.url}>WeRide</a>. I completed my PhD in
+			Industrial Engineering at the{' '}
+			<a href="https://www.wisc.edu/">University of Wisconsin–Madison</a>, where I was a member of{' '}
+			<a href="https://kaibo.ie.wisc.edu/people.html">SIDA</a> under Prof.{' '}
+			<a href="https://kaibo.ie.wisc.edu/">Kaibo Liu</a>. Before that I received my B.Eng. in
+			Automation at <a href="http://en.xjtu.edu.cn/">Xi'an Jiaotong University</a>, advised by Prof.{' '}
+			<a href="https://gr.xjtu.edu.cn/en/web/chaoboyan/english">Chao-Bo Yan</a>.
+		</p>
+		<p class="links">
+			<a href={links.scholar}>Google Scholar</a>
+			<a href={links.linkedin}>LinkedIn</a>
+			<a href={links.cv}>CV</a>
+			<a href={`mailto:${profile.email}`}>{profile.email}</a>
+		</p>
+	</section>
+
+	<section id="research" class="panel" data-section="research">
+		<p class="label"><span class="tick"></span>Research</p>
+		<div class="two-col">
+			<div>
+				<h2>Interests</h2>
+				<ul>{researchInterests.map((i) => <li>{i}</li>)}</ul>
+			</div>
+			<div>
+				<h2>Applications</h2>
+				<ul>{researchApplications.map((i) => <li>{i}</li>)}</ul>
+			</div>
+		</div>
+	</section>
+
+	<section id="publications" class="panel" data-section="research">
+		<p class="label"><span class="tick"></span>Publications</p>
+		<h2>Selected work</h2>
+		<ol class="pubs">
+			{
+				sorted.map((p, i) => (
+					<li>
+						<span class="num">{String(i + 1).padStart(2, '0')}</span>
+						<div>
+							<p class="authors">
+								{p.authors.map((a, j) => (
+									<>
+										{j > 0 && ', '}
+										<span class={a.self ? 'self' : ''}>
+											{a.name}
+											{a.eq && '*'}
+										</span>
+									</>
+								))}
+							</p>
+							<h3>{p.title}</h3>
+							<p class="venue">
+								<em>{p.venue}</em>
+								{p.year && `, ${p.year}`}
+								{p.detail && `, ${p.detail}`}
+								<span class="status">{statusLabel[p.status]}</span>
+							</p>
+							{p.links && (
+								<p class="pub-links">
+									{p.links.map((l) => (
+										<a href={l.url}>{l.label}</a>
+									))}
+								</p>
+							)}
+						</div>
+					</li>
+				))
+			}
+		</ol>
+		<p class="note">* Equal contribution.</p>
+	</section>
+
+	<section id="teaching" class="panel" data-section="teaching">
+		<p class="label"><span class="tick"></span>Teaching</p>
+		<h2>Courses</h2>
+		<ul class="rows">
+			{
+				teaching.map((t) => (
+					<li>
+						<span class="role label">{t.role}</span>
+						<div>
+							<h3>
+								{t.course} — {t.title}
+							</h3>
+							<p class="meta">
+								{t.level} · {t.terms}
+							</p>
+						</div>
+					</li>
+				))
+			}
+		</ul>
+	</section>
+
+	<section id="about" class="panel" data-section="about">
+		<p class="label"><span class="tick"></span>Education</p>
+		<ul class="rows">
+			{
+				education.map((e) => (
+					<li>
+						<span class="role label">{e.degree}</span>
+						<div>
+							<h3>{e.field}</h3>
+							<p class="meta">
+								{e.school} · {e.from} – {e.to}
+							</p>
+							{e.note && <p class="meta">{e.note}</p>}
+						</div>
+					</li>
+				))
+			}
+		</ul>
+	</section>
+</Base>
+
+<style>
+	.hero {
+		position: relative;
+		min-height: 88svh;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		max-width: 46rem;
+		padding: 8rem 0 4rem;
+	}
+	/*
+	 * A soft cream halo rather than a panel: the architecture should still read
+	 * behind the name, but type over raw geometry is unreadable. Radial and
+	 * generously feathered so there is no visible edge to the scrim.
+	 */
+	.hero::before {
+		content: '';
+		position: absolute;
+		inset: -6rem -10rem;
+		z-index: -1;
+		pointer-events: none;
+		background: radial-gradient(
+			65% 58% at 32% 50%,
+			rgba(250, 246, 237, 0.88),
+			rgba(250, 246, 237, 0.62) 45%,
+			rgba(250, 246, 237, 0) 78%
+		);
+	}
+	h1 {
+		font-size: clamp(2.8rem, 9vw, 6rem);
+		margin: 0.4em 0 0.3em;
+		letter-spacing: -0.02em;
+	}
+	.lede {
+		font-size: clamp(1rem, 2.2vw, 1.2rem);
+		max-width: var(--measure);
+		text-wrap: pretty;
+	}
+	.links {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1.5rem;
+		margin-top: 2rem;
+		font-family: var(--font-display);
+		font-size: 0.6875rem;
+		letter-spacing: 0.22em;
+		text-transform: uppercase;
+	}
+
+	/* Panels carry their own ground so text stays readable over the scene. */
+	.panel {
+		background: var(--panel);
+		backdrop-filter: blur(14px) saturate(0.9);
+		border: 1px solid var(--rule);
+		padding: clamp(1.5rem, 4vw, 3rem);
+		margin: 0 0 clamp(2rem, 6vw, 5rem);
+		scroll-margin-top: 6rem;
+	}
+	.panel h2 {
+		font-size: clamp(1.6rem, 4vw, 2.4rem);
+		margin: 0.3em 0 0.8em;
+	}
+
+	.two-col {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+		gap: clamp(1rem, 4vw, 3rem);
+	}
+	.two-col ul,
+	.rows {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+	}
+	.two-col li {
+		padding: 0.5rem 0;
+		border-bottom: 1px solid var(--rule);
+	}
+
+	.pubs {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		counter-reset: p;
+	}
+	.pubs li {
+		display: grid;
+		grid-template-columns: 3.5rem 1fr;
+		gap: 1rem;
+		padding: 1.4rem 0;
+		border-top: 1px solid var(--rule);
+	}
+	.num {
+		font-family: var(--font-mono);
+		font-size: 0.75rem;
+		color: var(--ink-faint);
+		padding-top: 0.4rem;
+	}
+	.pubs h3 {
+		font-size: 1.1rem;
+		margin: 0.25rem 0;
+		font-weight: 400;
+	}
+	.authors,
+	.venue,
+	.meta {
+		margin: 0;
+		font-size: 0.85rem;
+		color: var(--ink-soft);
+	}
+	.self {
+		color: var(--ink);
+		font-weight: 700;
+	}
+	.status {
+		display: inline-block;
+		margin-left: 0.7rem;
+		padding-left: 0.7rem;
+		border-left: 2px solid var(--accent);
+		font-family: var(--font-display);
+		font-size: 0.625rem;
+		letter-spacing: 0.18em;
+		text-transform: uppercase;
+		transition: border-color 600ms ease;
+	}
+	.pub-links {
+		margin: 0.5rem 0 0;
+		display: flex;
+		gap: 1rem;
+		font-size: 0.75rem;
+	}
+	.note {
+		font-size: 0.8rem;
+		color: var(--ink-faint);
+	}
+
+	.rows li {
+		display: grid;
+		grid-template-columns: 9rem 1fr;
+		gap: 1rem;
+		padding: 1.2rem 0;
+		border-top: 1px solid var(--rule);
+	}
+	.rows h3 {
+		font-size: 1.05rem;
+		margin: 0 0 0.2rem;
+		font-weight: 400;
+	}
+	.role {
+		padding-top: 0.3rem;
+	}
+	@media (max-width: 40rem) {
+		.pubs li,
+		.rows li {
+			grid-template-columns: 1fr;
+			gap: 0.3rem;
+		}
+	}
+</style>
+
+<script>
+	import { SECTION_AXIS, type SectionKey } from '../scene/palette';
+
+	/**
+	 * Gravity shift: as each section comes into view it claims the world's
+	 * colour axis, retinting both the scene's accent surfaces and the CSS
+	 * `--accent`. This is the site's one large piece of state, and it is driven
+	 * entirely by scroll position — no navigation required.
+	 */
+	const sections = document.querySelectorAll<HTMLElement>('[data-section]');
+	const garden = document.querySelector<HTMLElement>('.garden');
+	const root = document.documentElement;
+	let current = '';
+
+	/**
+	 * Ratios for every observed section, not just the ones that changed in the
+	 * current callback. A callback only carries *changed* entries, so choosing
+	 * from the batch alone misses the common case where one section leaves the
+	 * band and the section already inside it should take over.
+	 */
+	const ratios = new Map<Element, number>();
+
+	const io = new IntersectionObserver(
+		(entries) => {
+			for (const e of entries) ratios.set(e.target, e.isIntersecting ? e.intersectionRatio : 0);
+
+			// Whichever section occupies most of the middle band wins, so a short
+			// section sandwiched between two long ones still gets its turn.
+			let best: Element | null = null;
+			let bestRatio = 0;
+			for (const [el, r] of ratios) {
+				if (r > bestRatio) {
+					bestRatio = r;
+					best = el;
+				}
+			}
+			const key = best?.getAttribute('data-section') as SectionKey | undefined;
+			if (!key || key === current) return;
+			current = key;
+			document.dispatchEvent(new CustomEvent('garden:section', { detail: key }));
+			// Mirror the same axis onto the DOM so --accent tracks the scene.
+			const axis = SECTION_AXIS[key];
+			if (axis) {
+				root.setAttribute('data-axis', axis);
+				if (garden) garden.dataset.axis = axis;
+			}
+		},
+		{ rootMargin: '-35% 0px -35% 0px', threshold: [0, 0.25, 0.5, 1] },
+	);
+	sections.forEach((s) => io.observe(s));
+</script>

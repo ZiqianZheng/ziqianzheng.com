@@ -1,0 +1,94 @@
+---
+/**
+ * Mounts the procedural Garden scene as a fixed backdrop.
+ *
+ * The canvas is purely decorative: every word on the site lives in normal DOM
+ * above it, so the page is complete with JavaScript off, with WebGL
+ * unavailable, or for a crawler. The CSS gradient underneath is the fallback,
+ * and it is painted whether or not the scene ever starts.
+ */
+import { SECTION_AXIS, type SectionKey } from '../scene/palette';
+
+interface Props {
+	section?: SectionKey;
+}
+const { section = 'home' } = Astro.props;
+const axis = SECTION_AXIS[section];
+---
+
+<div class="garden" data-axis={axis} aria-hidden="true">
+	<canvas id="garden-canvas"></canvas>
+</div>
+
+<style>
+	.garden {
+		position: fixed;
+		inset: 0;
+		z-index: -1;
+		/* Fallback sky: matches the scene's zenith→horizon gradient, so a failed
+		   or disabled scene still lands on the right colour world. */
+		background: linear-gradient(180deg, var(--sky-zenith) 0%, var(--sky-horizon) 72%);
+	}
+	canvas {
+		display: block;
+		width: 100%;
+		height: 100%;
+		opacity: 0;
+		transition: opacity 1200ms ease;
+	}
+	canvas.ready {
+		opacity: 1;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		canvas {
+			transition: none;
+		}
+	}
+</style>
+
+<script>
+	import { createGarden } from '../scene/garden';
+	import { SECTION_AXIS, type AxisKey, type SectionKey } from '../scene/palette';
+
+	const host = document.querySelector<HTMLDivElement>('.garden');
+	const canvas = document.querySelector<HTMLCanvasElement>('#garden-canvas');
+	if (host && canvas) {
+		const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+		// Coarse pointer plus limited cores is a decent proxy for "phone". We drop
+		// resolution rather than the scene, so the look survives the downgrade.
+		const lowPower =
+			window.matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency ?? 8) <= 4;
+
+		// `?debug` keeps the drawing buffer so screenshots of a background tab
+		// capture real pixels. Dev-only, and off unless explicitly requested.
+		const debug = import.meta.env.DEV && new URLSearchParams(location.search).has('debug');
+
+		try {
+			const garden = createGarden({
+				canvas,
+				reducedMotion: motionQuery.matches,
+				quality: lowPower ? 'low' : 'high',
+				preserveBuffer: debug,
+			});
+			garden.setAxis((host.dataset.axis as AxisKey) ?? 'neutral');
+			// Safe immediately: the scene paints its first frame synchronously.
+			canvas.classList.add('ready');
+
+			if (import.meta.env.DEV) (window as any).__garden = garden;
+
+			motionQuery.addEventListener('change', (e) => garden.setReducedMotion(e.matches));
+
+			// Let other scripts retint the world: by section, or by raw axis.
+			document.addEventListener('garden:section', (e) => {
+				const key = (e as CustomEvent<SectionKey>).detail;
+				garden.setAxis(SECTION_AXIS[key] ?? 'neutral');
+			});
+			document.addEventListener('garden:axis', (e) => {
+				garden.setAxis((e as CustomEvent<AxisKey>).detail ?? 'neutral');
+			});
+		} catch {
+			// WebGL unavailable or context creation refused — the CSS sky stands in.
+			canvas.remove();
+		}
+	}
+</script>

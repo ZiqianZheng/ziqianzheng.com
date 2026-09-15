@@ -1,0 +1,91 @@
+/**
+ * Design tokens.
+ *
+ * Colour values mirror `src/scene/palette.ts` — that module is the source of
+ * truth for the 3D scene, this file for the DOM. Keep them in step.
+ */
+
+:root {
+	/* Sky. No true horizon: a bright band at eye level, indigo above and below. */
+	--sky-band: #f7edd9;
+	--sky-far: #243056;
+
+	/* Warm cream architecture — hue ~42°, low saturation, high value. */
+	--bone-light: #faf4e5;
+	--bone-mid: #f0e6d0;
+	--bone-dark: #decfb2;
+
+	/* The six gravity hues. One is active at a time, exposed as --accent. */
+	--axis-red: #f02a22;
+	--axis-orange: #f09020;
+	--axis-yellow: #fad000;
+	--axis-green: #2ecc4a;
+	--axis-blue: #16c4e0;
+	--axis-violet: #a832a8;
+	--accent: var(--axis-orange);
+
+	/* Ink. Deep indigo rather than black — it belongs to the same world. */
+	--ink: #1b2140;
+	--ink-soft: #4a5170;
+	--ink-faint: #8089a3;
+	--rule: rgba(27, 33, 64, 0.18);
+
+	/* Panels float over the scene, so they carry their own ground. */
+	--panel: rgba(250, 246, 237, 0.9);
+	--panel-solid: #faf6ed;
+
+	/*
+	 * Display face is geometric and uppercase — the reference brand uses a
+	 * Futura revival. Futura ships on macOS and Jost is the open equivalent;
+	 * both degrade to the platform geometric sans.
+	 */
+	--font-display: 'Futura', 'Jost', 'Century Gothic', system-ui, sans-serif;
+	--font-body: var(--font-atkinson), system-ui, sans-serif;
+	--font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+
+	--measure: 64ch;
+	--gutter: clamp(1.25rem, 4vw, 3.5rem);
+}
+
+[data-axis='red'] {
+	--accent: var(--axis-red);
+}
+[data-axis='orange'] {
+	--accent: var(--axis-orange);
+}
+[data-axis='yellow'] {
+	--accent: var(--axis-yellow);
+}
+[data-axis='green'] {
+	--accent: var(--axis-green);
+}
+[data-axis='blue'] {
+	--accent: var(--axis-blue);
+}
+[data-axis='violet'] {
+	--accent: var(--axis-violet);
+}
+
+/*
+ * HUD label. Uppercase geometric sans at wide tracking is the reference's
+ * single strongest typographic signature — it appears on every micro-label.
+ */
+.label {
+	font-family: var(--font-display);
+	font-size: 0.6875rem;
+	font-weight: 400;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--ink-faint);
+}
+
+/* The accent only ever appears as a small signal, never as a field. */
+.tick::before {
+	content: '';
+	display: inline-block;
+	width: 0.5em;
+	height: 0.5em;
+	margin-right: 0.6em;
+	background: var(--accent);
+	transition: background 600ms ease;
+}

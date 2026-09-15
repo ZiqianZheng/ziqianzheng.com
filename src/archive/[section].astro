@@ -1,0 +1,26 @@
+---
+/**
+ * One real route per destination.
+ *
+ * The descent is a client-side enhancement over these: deep links, the back
+ * button, and crawlers all work because each section genuinely exists at its
+ * own URL, pre-rendered with that panel already open.
+ */
+import Descent from '../layouts/Descent.astro';
+import { SECTIONS } from '../data/sections';
+
+export function getStaticPaths() {
+	return SECTIONS.map((s) => ({
+		params: { section: s.id },
+		props: { section: s },
+	}));
+}
+
+const { section } = Astro.props;
+---
+
+<Descent
+	active={section.id}
+	title={`${section.title} — Ziqian Zheng`}
+	description={section.blurb}
+/>

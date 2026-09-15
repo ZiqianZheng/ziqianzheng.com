@@ -1,0 +1,108 @@
+---
+// Scratch page for the descent mechanism in isolation. Not linked; noindex.
+import '../styles/tokens.css';
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<meta name="robots" content="noindex" />
+		<title>Descent — test</title>
+	</head>
+	<body>
+		<canvas id="c"></canvas>
+		<p id="hud" class="label">—</p>
+
+		<style>
+			body {
+				margin: 0;
+				background: #243056;
+				overflow: hidden;
+			}
+			canvas {
+				display: block;
+				width: 100vw;
+				height: 100svh;
+			}
+			#hud {
+				position: fixed;
+				left: 1.5rem;
+				bottom: 1.5rem;
+				color: #f7edd9;
+				margin: 0;
+			}
+		</style>
+
+		<script>
+			import { createDescent } from '../scene/descent';
+
+			const canvas = document.getElementById('c') as HTMLCanvasElement;
+			const hud = document.getElementById('hud')!;
+			let depth = 0;
+			const trail: string[] = [];
+
+			const d = createDescent({
+				canvas,
+				preserveBuffer: new URLSearchParams(location.search).has('debug'),
+				onHover: (id) => {
+					if (!trail.length) hud.textContent = id ? `▸ ${id}` : '—';
+				},
+				onEnter: (id) => {
+					hud.textContent = `entering ${id}…`;
+				},
+				onArrive: (id) => {
+					depth++;
+					trail.push(id);
+					hud.textContent = `depth ${depth} · ${trail.join(' / ')}`;
+				},
+			});
+
+			(window as any).__d = d;
+
+			/**
+			 * Pose the scene from the URL and render once, synchronously, during
+			 * load.
+			 *
+			 * This has to happen before first paint: a background tab updates the
+			 * WebGL buffer but never re-composites, so anything rendered after
+			 * load is invisible to a screenshot. Encoding the pose in the URL and
+			 * reloading is the only way to capture a chosen frame.
+			 *
+			 *   ?pose=front   face a tunnel head-on
+			 *   ?hover=<id>   light one aperture as if hovered
+			 *   ?fly=<0..1>   freeze partway through a descent
+			 */
+			const q = new URLSearchParams(location.search);
+			if (q.has('pose') || q.has('hover') || q.has('fly')) {
+				d.stop();
+				const { form, camera, renderer, scene, gates } = d.internals;
+
+				if (q.get('pose') === 'front') {
+					form.rotation.set(0, 0, 0);
+					camera.position.set(0, 0, 2.4);
+					camera.lookAt(0, 0, 0);
+				}
+
+				const fly = Number(q.get('fly') ?? NaN);
+				if (!Number.isNaN(fly)) {
+					d.enter((q.get('hover') as any) ?? 'index');
+					const frames = Math.round((1.7 * 60 * Math.min(Math.max(fly, 0), 1)) | 0);
+					for (let i = 0; i < frames; i++) d.step(1 / 60);
+				}
+
+				const hov = q.get('hover');
+				if (hov) {
+					for (const g of gates) {
+						g.mesh.material.uniforms.uOpacity.value = g.id === hov ? 1.5 : 0.3;
+					}
+				}
+				form.updateMatrixWorld(true);
+				camera.updateMatrixWorld(true);
+				renderer.render(scene, camera);
+				hud.textContent = `posed: ${location.search}`;
+			}
+		</script>
+	</body>
+</html>

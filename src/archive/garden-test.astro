@@ -1,0 +1,100 @@
+---
+// Scratch page for eyeballing the scene in isolation. Not linked from the site.
+import Garden from '../components/Garden.astro';
+import '../styles/tokens.css';
+---
+
+<!doctype html>
+<html lang="en" data-axis="neutral">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<meta name="robots" content="noindex" />
+		<title>Garden — scene test</title>
+	</head>
+	<body>
+		<Garden section="home" />
+		<div class="probe">
+			<p class="label">Scene test</p>
+			<div class="swatches">
+				<button data-k="neutral">neutral</button>
+				<button data-k="blue">blue</button>
+				<button data-k="green">green</button>
+				<button data-k="yellow">yellow</button>
+				<button data-k="red">red</button>
+				<button data-k="violet">violet</button>
+			</div>
+			<p class="label" id="fps">—</p>
+		</div>
+
+		<style>
+			body {
+				margin: 0;
+				min-height: 100svh;
+				font-family: var(--font-sans);
+				color: var(--ink);
+			}
+			.probe {
+				position: fixed;
+				left: var(--gutter);
+				bottom: var(--gutter);
+				background: var(--panel);
+				backdrop-filter: blur(8px);
+				padding: 0.9rem 1.1rem;
+				border: 1px solid var(--rule);
+			}
+			.swatches {
+				display: flex;
+				gap: 0.4rem;
+				margin: 0.6rem 0;
+			}
+			button {
+				font: inherit;
+				font-size: 0.75rem;
+				padding: 0.3rem 0.6rem;
+				border: 1px solid var(--rule);
+				background: transparent;
+				cursor: pointer;
+			}
+		</style>
+
+		<script>
+			for (const b of document.querySelectorAll<HTMLButtonElement>('.swatches button')) {
+				b.addEventListener('click', () => {
+					document.querySelector('.garden')?.setAttribute('data-axis', b.dataset.k!);
+					document.dispatchEvent(new CustomEvent('garden:axis', { detail: b.dataset.k }));
+				});
+			}
+			/**
+			 * Advance the scene to `seconds` and force it visible, for capture.
+			 * Background tabs suspend both rAF and CSS transitions, so a
+			 * screenshot otherwise catches a transparent, unpainted canvas.
+			 */
+			(window as any).__shot = (seconds = 7) => {
+				const g = (window as any).__garden;
+				if (!g) return 'no garden';
+				const c = document.querySelector('canvas')!;
+				c.style.transition = 'none';
+				c.style.opacity = '1';
+				for (let i = 0; i < Math.round(seconds * 60); i++) g.step(1 / 60);
+				const p = g.internals.camera.position;
+				return `t=${seconds}s cam=(${p.x.toFixed(0)},${p.y.toFixed(0)},${p.z.toFixed(0)}) tris=${g.internals.renderer.info.render.triangles}`;
+			};
+
+			let n = 0;
+			let t0 = performance.now();
+			const el = document.getElementById('fps')!;
+			const tick = () => {
+				n++;
+				const now = performance.now();
+				if (now - t0 > 1000) {
+					el.textContent = `${Math.round((n * 1000) / (now - t0))} fps`;
+					n = 0;
+					t0 = now;
+				}
+				requestAnimationFrame(tick);
+			};
+			tick();
+		</script>
+	</body>
+</html>

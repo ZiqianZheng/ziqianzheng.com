@@ -1,0 +1,388 @@
+---
+/**
+ * The site shell.
+ *
+ * One canvas, one wordmark, six panels. Navigation is the sponge itself: there
+ * is no menu, because the form *is* the menu.
+ *
+ * Every panel is rendered into the DOM on every route, so the site works with
+ * JavaScript off and a crawler sees all of it. The 3D descent is layered over
+ * ordinary navigation, never a substitute for it — with JS disabled the panels
+ * are simply a list of anchored sections, which is a perfectly good website.
+ */
+import { SECTIONS } from '../data/sections';
+import { SECTION_AXIS } from '../scene/palette';
+import '../styles/tokens.css';
+
+interface Props {
+	/** Section to show on load; empty means the arrival view. */
+	active?: string;
+	title: string;
+	description: string;
+}
+const { active = '', title, description } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site ?? 'https://www.ziqianzheng.com');
+---
+
+<!doctype html>
+<html lang="en" data-active={active}>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>{title}</title>
+		<meta name="description" content={description} />
+		<link rel="canonical" href={canonical.href} />
+		<link rel="icon" href="/avatar.png" />
+	</head>
+	<body>
+		<canvas id="stage" aria-hidden="true"></canvas>
+
+		<!-- Wash that covers the level reset at the bottom of a descent. -->
+		<div id="veil" aria-hidden="true"></div>
+
+		<a class="mark" href="/">Ziqian Zheng</a>
+
+		<!--
+			The no-JS / no-WebGL path. Hidden once the scene takes over, so the
+			navigation exists for crawlers and keyboard users regardless.
+		-->
+		<nav id="fallback" aria-label="Sections">
+			{SECTIONS.map((s) => <a href={`/${s.id}`}>{s.label}</a>)}
+		</nav>
+
+		<!-- Floating label for the aperture under the cursor. -->
+		<div id="cue" aria-hidden="true"></div>
+
+		<main>
+			{
+				SECTIONS.map((s) => (
+					<article
+						class="panel"
+						id={`panel-${s.id}`}
+						data-panel={s.id}
+						data-axis={SECTION_AXIS[s.id as keyof typeof SECTION_AXIS]}
+						hidden={active !== s.id}
+					>
+						<p class="label">
+							<span class="tick" />
+							{s.label}
+						</p>
+						<h1>{s.title}</h1>
+						<p class="blurb">{s.blurb}</p>
+						<slot name="body" />
+						<p class="ascend label">
+							<button type="button" data-ascend>
+								↑ ascend
+							</button>
+							<span class="hint">esc</span>
+						</p>
+					</article>
+				))
+			}
+		</main>
+
+		<style is:global>
+			*,
+			*::before,
+			*::after {
+				box-sizing: border-box;
+			}
+			html,
+			body {
+				height: 100%;
+			}
+			body {
+				margin: 0;
+				background: var(--sky-far);
+				color: var(--bone-light);
+				font-family: var(--font-body);
+				overflow: hidden;
+			}
+			/* With no scene, the page must still scroll and read normally. */
+			html:not(.has-scene) body {
+				overflow: auto;
+			}
+
+			#stage {
+				position: fixed;
+				inset: 0;
+				display: block;
+				width: 100%;
+				height: 100%;
+			}
+			html:not(.has-scene) #stage {
+				display: none;
+			}
+
+			#veil {
+				position: fixed;
+				inset: 0;
+				z-index: 5;
+				pointer-events: none;
+				opacity: 0;
+				background: radial-gradient(
+					circle at 50% 50%,
+					var(--accent) 0%,
+					color-mix(in srgb, var(--accent) 35%, var(--sky-far)) 45%,
+					var(--sky-far) 100%
+				);
+			}
+
+			.mark {
+				position: fixed;
+				top: var(--gutter);
+				left: var(--gutter);
+				z-index: 20;
+				font-family: var(--font-display);
+				font-size: 0.8125rem;
+				letter-spacing: 0.3em;
+				text-transform: uppercase;
+				color: var(--bone-light);
+				text-decoration: none;
+				opacity: 0.85;
+			}
+
+			#cue {
+				position: fixed;
+				z-index: 20;
+				pointer-events: none;
+				font-family: var(--font-display);
+				font-size: 0.75rem;
+				letter-spacing: 0.3em;
+				text-transform: uppercase;
+				color: var(--bone-light);
+				opacity: 0;
+				transform: translate(-50%, -50%);
+				transition: opacity 260ms ease;
+				text-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+			}
+			#cue.on {
+				opacity: 0.92;
+			}
+
+			/* Visible only without the scene; the sponge replaces it. */
+			#fallback {
+				position: fixed;
+				bottom: var(--gutter);
+				left: var(--gutter);
+				z-index: 20;
+				display: flex;
+				gap: 1.25rem;
+				font-family: var(--font-display);
+				font-size: 0.75rem;
+				letter-spacing: 0.24em;
+				text-transform: uppercase;
+			}
+			#fallback a {
+				color: var(--bone-light);
+			}
+			html.has-scene #fallback {
+				display: none;
+			}
+
+			main {
+				position: relative;
+				z-index: 10;
+			}
+			.panel {
+				position: fixed;
+				inset: auto 0 0 0;
+				max-height: 78svh;
+				overflow-y: auto;
+				padding: clamp(1.5rem, 5vw, 3.5rem);
+				background: linear-gradient(
+					180deg,
+					color-mix(in srgb, var(--sky-far) 0%, transparent),
+					color-mix(in srgb, var(--sky-far) 92%, transparent) 22%,
+					var(--sky-far) 100%
+				);
+				color: var(--bone-light);
+			}
+			html:not(.has-scene) .panel {
+				position: static;
+				max-height: none;
+				background: none;
+				border-top: 1px solid rgba(250, 244, 229, 0.15);
+			}
+			.panel[hidden] {
+				display: none;
+			}
+			.panel h1 {
+				font-family: var(--font-display);
+				font-weight: 400;
+				font-size: clamp(2rem, 6vw, 3.5rem);
+				margin: 0.2em 0 0.3em;
+				letter-spacing: -0.01em;
+			}
+			.panel .blurb {
+				max-width: var(--measure);
+				margin: 0;
+				color: color-mix(in srgb, var(--bone-light) 72%, transparent);
+			}
+			.ascend {
+				margin: 2rem 0 0;
+				display: flex;
+				align-items: center;
+				gap: 0.8rem;
+			}
+			.ascend button {
+				font: inherit;
+				letter-spacing: inherit;
+				text-transform: inherit;
+				color: var(--bone-light);
+				background: none;
+				border: 1px solid rgba(250, 244, 229, 0.3);
+				padding: 0.5rem 1rem;
+				cursor: pointer;
+			}
+			.ascend button:hover {
+				border-color: var(--accent);
+			}
+			.ascend .hint {
+				opacity: 0.5;
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				#veil,
+				#cue {
+					transition: none;
+				}
+			}
+		</style>
+
+		<script>
+			import { createDescent } from '../scene/descent';
+			import type { ApertureId } from '../scene/menger';
+			import { SECTIONS } from '../data/sections';
+			import { SECTION_AXIS } from '../scene/palette';
+
+			const root = document.documentElement;
+			const canvas = document.getElementById('stage') as HTMLCanvasElement;
+			const veil = document.getElementById('veil')!;
+			const cue = document.getElementById('cue')!;
+			const panels = new Map(
+				SECTIONS.map((s) => [s.id, document.getElementById(`panel-${s.id}`)!]),
+			);
+			const labels = new Map(SECTIONS.map((s) => [s.id, s.label]));
+			const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+			let scene: ReturnType<typeof createDescent> | null = null;
+			try {
+				scene = createDescent({
+					canvas,
+					reducedMotion: reduced.matches,
+					preserveBuffer: import.meta.env.DEV && location.search.includes('debug'),
+					onHover: (id) => showCue(id),
+					onEnter: (id) => beginDescent(id),
+					onArrive: (id) => arrive(id),
+				});
+				// Only now is it safe to hide the fallback navigation.
+				root.classList.add('has-scene');
+			} catch {
+				// No WebGL: the fallback nav and stacked panels are the site.
+			}
+
+			if (scene) {
+				reduced.addEventListener('change', (e) => scene!.setReducedMotion(e.matches));
+				if (import.meta.env.DEV) (window as any).__d = scene;
+			}
+
+			let pointerX = 0;
+			let pointerY = 0;
+			addEventListener('pointermove', (e) => {
+				pointerX = e.clientX;
+				pointerY = e.clientY;
+				if (cue.classList.contains('on')) place();
+			});
+			function place() {
+				cue.style.left = `${pointerX}px`;
+				cue.style.top = `${pointerY - 46}px`;
+			}
+
+			function showCue(id: ApertureId | null) {
+				if (!id || current) {
+					cue.classList.remove('on');
+					return;
+				}
+				cue.textContent = labels.get(id) ?? id;
+				place();
+				cue.classList.add('on');
+			}
+
+			/** Section currently open, or '' at the arrival view. */
+			let current = root.dataset.active || '';
+
+			function setAxis(id: string) {
+				const axis = SECTION_AXIS[id as keyof typeof SECTION_AXIS];
+				if (axis) root.setAttribute('data-axis', axis);
+			}
+			if (current) setAxis(current);
+
+			function beginDescent(id: ApertureId) {
+				showCue(null);
+				setAxis(id);
+				// The veil rises through the dive and covers the level reset at
+				// the bottom of it, where the camera snaps back out.
+				const ms = reduced.matches ? 0 : 1700;
+				veil.animate(
+					[
+						{ opacity: 0, offset: 0 },
+						{ opacity: 0, offset: 0.55 },
+						{ opacity: 0.92, offset: 1 },
+					],
+					{ duration: ms, easing: 'ease-in', fill: 'forwards' },
+				);
+			}
+
+			function arrive(id: ApertureId) {
+				open(id);
+				veil.animate([{ opacity: 0.92 }, { opacity: 0 }], {
+					duration: reduced.matches ? 0 : 520,
+					easing: 'ease-out',
+					fill: 'forwards',
+				});
+			}
+
+			function open(id: string, push = true) {
+				for (const [key, el] of panels) el.hidden = key !== id;
+				current = id;
+				root.dataset.active = id;
+				setAxis(id);
+				const s = SECTIONS.find((x) => x.id === id);
+				if (s) document.title = `${s.title} — Ziqian Zheng`;
+				if (push) history.pushState({ id }, '', `/${id}`);
+				panels.get(id)?.focus?.();
+			}
+
+			function ascend(push = true) {
+				for (const el of panels.values()) el.hidden = true;
+				current = '';
+				root.dataset.active = '';
+				root.removeAttribute('data-axis');
+				document.title = 'Ziqian Zheng';
+				if (push) history.pushState({ id: '' }, '', '/');
+			}
+
+			for (const btn of document.querySelectorAll('[data-ascend]')) {
+				btn.addEventListener('click', () => ascend());
+			}
+			addEventListener('keydown', (e) => {
+				if (e.key === 'Escape' && current) ascend();
+			});
+			addEventListener('popstate', (e) => {
+				const id = (e.state?.id ?? '') as string;
+				if (id) open(id, false);
+				else ascend(false);
+			});
+
+			// Intercept the fallback links so they dive rather than reload.
+			for (const a of document.querySelectorAll<HTMLAnchorElement>('#fallback a')) {
+				a.addEventListener('click', (e) => {
+					if (!scene) return;
+					e.preventDefault();
+					scene.enter(a.pathname.slice(1) as ApertureId);
+				});
+			}
+		</script>
+	</body>
+</html>

@@ -1,0 +1,30 @@
+# build output
+dist/
+.astro/
+
+# dependencies — restored by `npm ci` from package-lock.json
+node_modules/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# environment
+.env
+.env.production
+.env.local
+
+# macOS
+.DS_Store
+
+# editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+
+# local scratch
+.tools/
+*.local

@@ -1,0 +1,124 @@
+---
+/**
+ * Arrival: the tessellation fills the whole screen.
+ *
+ * The renderer is a vendored build of tessellation-webgl by Jeremie Piellard
+ * (MIT — see /tess/LICENSE and `design/tessellation.md`). It lives in `public/`
+ * rather than the Astro pipeline because it is a prebuilt webpack bundle that
+ * spawns its own Web Worker, and both need stable, absolute URLs.
+ *
+ * Load order matters: config.js installs the `Page` global that main.js reads
+ * the moment it executes, so neither is deferred and both sit at end of body.
+ */
+import '../styles/tokens.css';
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<title>Ziqian Zheng</title>
+		<meta
+			name="description"
+			content="Personal site of Ziqian Zheng — software engineer, PhD in industrial engineering."
+		/>
+		<link rel="canonical" href="https://www.ziqianzheng.com/" />
+		<link rel="icon" href="/avatar.png" />
+	</head>
+	<body>
+		<canvas id="tessellation-canvas" aria-hidden="true"></canvas>
+
+		<!--
+			The canvas carries no text, so this is the page's only real content.
+			A genuine top-level heading rather than a styled link: it is what a
+			crawler and a screen reader have to work with.
+		-->
+		<header class="mark">
+			<h1>Ziqian Zheng</h1>
+			<p>a wanderer</p>
+		</header>
+
+		<noscript>
+			<p class="fallback">Ziqian Zheng — a wanderer.</p>
+		</noscript>
+
+		<style is:global>
+			*,
+			*::before,
+			*::after {
+				box-sizing: border-box;
+			}
+			html,
+			body {
+				height: 100%;
+			}
+			body {
+				margin: 0;
+				/* Shows through before the first frame, and if WebGL is absent. */
+				background: var(--sky-far);
+				color: var(--bone-light);
+				font-family: var(--font-body);
+				overflow: hidden;
+			}
+
+			#tessellation-canvas {
+				position: fixed;
+				inset: 0;
+				display: block;
+				width: 100%;
+				height: 100%;
+				/* The engine zooms on wheel and drag; let it have the gestures. */
+				touch-action: none;
+			}
+			/* Set by the config shim when WebGL or a shader fails. */
+			html.tess-failed #tessellation-canvas {
+				display: none;
+			}
+
+			.mark {
+				position: fixed;
+				top: var(--gutter);
+				left: var(--gutter);
+				z-index: 10;
+				font-family: var(--font-display);
+				color: var(--bone-light);
+				/*
+				 * A soft shadow rather than `mix-blend-mode: difference`: against
+				 * a field this green, difference turns pale text magenta, which
+				 * reads as a mistake. The shadow keeps it legible over both the
+				 * bright and the dark greens without shifting hue.
+				 */
+				text-shadow:
+					0 0 2px rgba(12, 26, 16, 0.4),
+					0 2px 28px rgba(12, 26, 16, 0.55);
+			}
+			.mark h1 {
+				margin: 0;
+				font-size: clamp(1rem, 1.5vw, 1.25rem);
+				font-weight: 400;
+				letter-spacing: 0.3em;
+				text-transform: uppercase;
+				line-height: 1.2;
+			}
+			.mark p {
+				margin: 0.7em 0 0;
+				font-size: clamp(0.75rem, 1vw, 0.875rem);
+				letter-spacing: 0.24em;
+				/* Lowercase against the uppercase name — the contrast is what
+				   makes a two-line lockup read as one thing. */
+				text-transform: lowercase;
+				opacity: 0.78;
+			}
+
+			.fallback {
+				position: fixed;
+				inset: auto auto var(--gutter) var(--gutter);
+				margin: 0;
+			}
+		</style>
+
+		<script is:inline src="/tess/config.js"></script>
+		<script is:inline src="/tess/main.js"></script>
+	</body>
+</html>
