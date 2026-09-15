@@ -42,3 +42,8 @@ node scripts/measure-palette.mjs       # report how green the palette is
 ```
 
 See `design/tessellation.md` for what was changed and why.
+
+## Deploy
+
+Pushing to `main` publishes the site. See `docs/deployment.md` for the DNS records,
+domain verification, and access control.
