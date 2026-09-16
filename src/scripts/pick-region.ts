@@ -32,7 +32,7 @@ export type FoundRegion = {
  * the outline is traced from this mask and its resolution sets how closely the
  * polygon follows the real triangle edges.
  */
-const SAMPLE_W = 440;
+const SAMPLE_W = 820;
 /** Max per-channel difference still counted as the same primitive. */
 const TOLERANCE = 10;
 /** Seeds to try before giving up. */
@@ -44,9 +44,11 @@ const ATTEMPTS = 26;
  * triangles and phases of fine dust, and in the latter a usable shape genuinely
  * needs hundreds of primitives — a low cap does not produce a smaller offer, it
  * produces no offer at all. Each part is one tiny flood fill and the frontier is
- * maintained incrementally, so the cost stays flat.
+ * maintained incrementally, so the cost stays flat. Raising the sampling
+ * resolution raises this requirement too, since a primitive of a given size on
+ * screen then covers proportionally more sampled pixels.
  */
-const MAX_PARTS = 320;
+const MAX_PARTS = 900;
 /** Smallest comfortable touch target, in CSS pixels. */
 const TAP_TARGET = 56;
 /** Never claim more than this share of the screen — that reads as a mistake. */
@@ -98,7 +100,7 @@ export function thresholds(width: number, height: number) {
 let scratch: HTMLCanvasElement | null = null;
 
 /** Cap on sampled pixels, so a tall portrait viewport is not far costlier. */
-const MAX_SAMPLE_PIXELS = 120_000;
+const MAX_SAMPLE_PIXELS = 420_000;
 
 function sample(source: HTMLCanvasElement): ImageData | null {
 	// Never sample above the source's own size: on a narrow phone `SAMPLE_W`
@@ -278,7 +280,7 @@ function traceOutline(mask: Uint8Array, w: number, h: number): Point[] {
  * click. Simplifying down to a handful of corners keeps it recognisably carved
  * out of the mosaic while still looking deliberate.
  */
-const MAX_VERTICES = 7;
+const MAX_VERTICES = 16;
 
 /** Ramer–Douglas–Peucker. Straightens the stepped mask edges into real lines. */
 function simplify(points: Point[], epsilon: number): Point[] {
@@ -307,9 +309,27 @@ function simplify(points: Point[], epsilon: number): Point[] {
 		return [...run(pts.slice(0, idx + 1)).slice(0, -1), ...run(pts.slice(idx))];
 	};
 
-	// Closed loop: split at the two extremes so simplification is stable.
-	const half = Math.floor(points.length / 2);
-	return [...run(points.slice(0, half + 1)).slice(0, -1), ...run(points.slice(half))];
+	/*
+	 * Douglas–Peucker works on an open line, so a closed loop has to be cut
+	 * somewhere first — and both endpoints of each half are kept no matter what.
+	 * Cutting at an arbitrary index therefore nails two vertices to two
+	 * meaningless points partway along an edge, and spends the budget correcting
+	 * for them. Cutting at the two points furthest apart puts them on genuine
+	 * extremes of the shape, which are corners far more often than not.
+	 */
+	let far = 0;
+	let best = -1;
+	for (let i = 1; i < points.length; i++) {
+		const d = Math.hypot(points[i].x - points[0].x, points[i].y - points[0].y);
+		if (d > best) {
+			best = d;
+			far = i;
+		}
+	}
+	if (far < 2 || far > points.length - 2) {
+		far = Math.floor(points.length / 2);
+	}
+	return [...run(points.slice(0, far + 1)).slice(0, -1), ...run(points.slice(far))];
 }
 
 /**
