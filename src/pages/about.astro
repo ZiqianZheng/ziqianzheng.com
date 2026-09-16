@@ -5,13 +5,25 @@
  * Deliberately calm: no canvas, no motion. The arrival screen carries the
  * spectacle, and this is the page someone reads.
  *
- * Education dates render from `to` and are skipped when it is empty, so an
- * entry whose real end date is unknown shows no date rather than a wrong one.
- * The source material claimed the PhD was complete while also listing it as
- * "– present"; that contradiction is still unresolved for the PhD and the M.S.
+ * Education reads as two lines per entry — the qualification, then where and
+ * when — with years rather than months. `profile.ts` keeps the months for the
+ * CV; this page does not want that precision.
  */
 import { education, links, profile } from '../data/profile';
 import '../styles/tokens.css';
+
+/**
+ * Years only, and collapsed when a degree begins and ends in the same one —
+ * "2023" reads better than "2023–2023". Months are kept in the data for the CV
+ * but are more precision than this page wants.
+ */
+const yearOf = (s: string) => s.match(/\d{4}/)?.[0] ?? '';
+function span(from: string, to: string) {
+	const a = yearOf(from);
+	const b = yearOf(to);
+	if (!a || !b) return a || b;
+	return a === b ? a : `${a}–${b}`;
+}
 ---
 
 <!doctype html>
@@ -54,28 +66,18 @@ import '../styles/tokens.css';
 					{
 						education.map((e) => (
 							<li>
-								<span class="key">{e.degree}</span>
-								<div>
-									<p class="primary">{e.field}</p>
-									<p class="secondary">{e.school}</p>
+								<p class="primary">
+									{e.degree} in {e.field}
 									{e.note && (
-										<p class="secondary">
-											{e.note.url ? <a href={e.note.url}>{e.note.label}</a> : e.note.label}
-											{e.note.from && (
-												<span class="when">
-													{e.note.from} – {e.note.to}
-												</span>
-											)}
-										</p>
+										<>
+											, {e.note.url ? <a href={e.note.url}>{e.note.label}</a> : e.note.label}
+										</>
 									)}
-								</div>
-								{/* Omitted where the real end date is unknown, rather than
-								    printed as "present" for a degree already finished. */}
-								{e.to && (
-									<span class="when">
-										{e.from} – {e.to}
-									</span>
-								)}
+								</p>
+								<p class="secondary">
+									{e.school}
+									{e.to && <> · {span(e.from, e.to)}</>}
+								</p>
 							</li>
 						))
 					}
@@ -134,7 +136,6 @@ import '../styles/tokens.css';
 			.back,
 			.eyebrow,
 			h2,
-			.key,
 			footer {
 				font-family: var(--font-display);
 				letter-spacing: 0.24em;
@@ -198,29 +199,7 @@ import '../styles/tokens.css';
 				padding: 0;
 			}
 			.rows li {
-				display: grid;
-				grid-template-columns: 5.5rem 1fr auto;
-				gap: 1rem;
-				padding: 0.8rem 0;
-				align-items: start;
-			}
-			/* Dates sit quietly to the right, and inline after a note. */
-			.when {
-				font-family: var(--font-display);
-				font-size: 0.6875rem;
-				letter-spacing: 0.12em;
-				opacity: 0.45;
-				white-space: nowrap;
-				padding-top: 0.4em;
-			}
-			.secondary .when {
-				padding-top: 0;
-				margin-left: 0.6em;
-			}
-			.key {
-				font-size: 0.6875rem;
-				opacity: 0.55;
-				padding-top: 0.35em;
+				padding: 0.7rem 0;
 			}
 			.primary {
 				margin: 0;
@@ -248,15 +227,7 @@ import '../styles/tokens.css';
 			footer p {
 				margin: 0;
 			}
-			@media (max-width: 34rem) {
-				.rows li {
-					grid-template-columns: 1fr;
-					gap: 0.2rem;
-				}
-				.rows > li > .when {
-					padding-top: 0.3em;
-				}
-			}
+
 		</style>
 	</body>
 </html>

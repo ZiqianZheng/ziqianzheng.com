@@ -30,13 +30,17 @@ import '../styles/tokens.css';
 		<canvas id="tessellation-canvas" aria-hidden="true"></canvas>
 
 		<!--
-			The way in. Hidden until the scene freezes, then a single triangle is
-			outlined and named. Purely decorative for assistive tech — the real
+			The way in. Hidden until the scene freezes, at which point a region
+			breaks apart, its pieces fly off screen, and the hole they leave is
+			named and clickable. Purely decorative for assistive tech — the real
 			link is the always-present one below, which is also the no-JS path.
 		-->
 		<div id="gate" hidden>
-			<svg id="gate-svg" aria-hidden="true"><polygon id="gate-shape"></polygon></svg>
-			<a id="gate-label" href="/about">about me</a>
+			<svg id="gate-svg" aria-hidden="true">
+				<polygon id="gate-shape"></polygon>
+				<g id="gate-shards"></g>
+			</svg>
+			<a id="gate-label" href="/about">about</a>
 		</div>
 
 		<!--
@@ -48,7 +52,7 @@ import '../styles/tokens.css';
 			<h1>Ziqian Zheng</h1>
 			<p>a wanderer</p>
 			{/* Reachable by keyboard, screen readers, and with JS disabled. */}
-			<a class="mark-link" href="/about">about me</a>
+			<a class="mark-link" href="/about">about</a>
 		</header>
 
 		<style is:global>
@@ -165,36 +169,59 @@ import '../styles/tokens.css';
 				overflow: visible;
 			}
 			/*
-			 * Blinks between the region's own colour and solid black, rather than
-			 * washing it with a tint. Against a field this busy a wash barely
-			 * registers; dropping the shape to black is unmistakable, and it keeps
-			 * the artwork's own colour as the other half of the blink instead of
-			 * covering it up.
+			 * The hole left behind once the piece has flown off. Dark rather than
+			 * outlined, so the region reads as *removed* from the artwork — which
+			 * is what makes it legible as a way in — and it stays put as the
+			 * click target after the shards are gone.
 			 */
 			#gate-shape {
-				fill: #000;
-				fill-opacity: 0;
-				stroke: rgba(250, 244, 229, 0.92);
-				stroke-width: 2;
+				fill: rgba(4, 10, 6, 0.86);
+				stroke: rgba(250, 244, 229, 0.75);
+				stroke-width: 1.5;
 				stroke-linejoin: round;
 				paint-order: stroke;
 				pointer-events: auto;
 				cursor: pointer;
-				animation: gate-blink 1.5s ease-in-out infinite;
+				opacity: 0;
+				animation: gate-open 900ms ease-out forwards;
 			}
-			@keyframes gate-blink {
-				/* Long holds at each end with quick crossings, so it reads as a
-				   blink rather than a breath. */
+			@keyframes gate-open {
+				/* Held back just long enough that the pieces are seen leaving before
+				   the hole reads, then opened well before they land. */
 				0%,
-				42% {
-					fill-opacity: 0;
-				}
-				50%,
-				92% {
-					fill-opacity: 0.94;
+				8% {
+					opacity: 0;
 				}
 				100% {
-					fill-opacity: 0;
+					opacity: 1;
+				}
+			}
+
+			/* Flying pieces. Never clickable — the hole underneath is the target. */
+			#gate-shards {
+				pointer-events: none;
+			}
+			.shard {
+				/* Rotate about each piece's own centre, not the SVG origin. */
+				transform-box: fill-box;
+				transform-origin: center;
+				/*
+				 * A piece cut from the artwork is the same colour as the artwork,
+				 * so without an edge it is invisible until it clears the mosaic.
+				 * The dark outline separates it the instant it starts moving.
+				 */
+				stroke: rgba(6, 14, 8, 0.85);
+				stroke-width: 1.25;
+				stroke-linejoin: round;
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				#gate-shape {
+					animation: none;
+					opacity: 1;
+				}
+				#gate-shards {
+					display: none;
 				}
 			}
 			#gate-label {
@@ -222,10 +249,6 @@ import '../styles/tokens.css';
 				#gate {
 					transition: none;
 				}
-				#gate-shape {
-					animation: none;
-					fill-opacity: 0.55;
-				}
 			}
 		</style>
 
@@ -233,7 +256,7 @@ import '../styles/tokens.css';
 		<script is:inline src="/tess/main.js"></script>
 
 		<script>
-			import { pickRegion, thresholds, type Point } from '../scripts/pick-region';
+			import { pickRegion, thresholds, type FoundRegion, type Point } from '../scripts/pick-region';
 
 			type Tessellation = {
 				pause(): void;
@@ -243,20 +266,92 @@ import '../styles/tokens.css';
 			};
 			const tess = (window as unknown as { tessellation?: Tessellation }).tessellation;
 
-			// Absent in production while the about page is still a draft, so every
-			// use below is guarded rather than asserted.
+			// Guarded rather than asserted: these were absent in production while
+			// the about page was a draft, and the same will apply to the next page
+			// built that way.
 			const gate = document.getElementById('gate');
 			const shape = document.getElementById('gate-shape');
+			const shards = document.getElementById('gate-shards');
 			const label = document.getElementById('gate-label') as HTMLAnchorElement | null;
 			const canvas = document.getElementById('tessellation-canvas') as HTMLCanvasElement | null;
 
 			/** How long the pointer must be still before the scene resumes. */
 			const IDLE_MS = 3000;
 
+			/**
+			 * Live query, not a one-off read: the setting can change mid-session,
+			 * and honouring it matters here because the shatter throws a dozen
+			 * spinning shapes across the whole viewport.
+			 */
+			const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+
 			let shown = false;
 			let idleTimer: number | undefined;
 			/** Where the last offer sat, so the next one lands somewhere else. */
 			let lastCentroid: Point | null = null;
+
+			/**
+			 * Break the chosen region apart and throw the pieces off screen.
+			 *
+			 * Each piece carries the colour of the canvas it came from, so what
+			 * flies away looks like the artwork itself rather than an overlay, and
+			 * what it leaves behind is the dark hole that becomes the way in.
+			 *
+			 * Direction is outward from the region's centre. Pieces very near that
+			 * centre have no meaningful outward direction, so they get a random
+			 * one instead of barely moving while everything else clears the frame.
+			 */
+			function shatter(found: FoundRegion) {
+				if (!shards) return;
+				shards.replaceChildren();
+				if (reduced.matches) return;
+
+				// Far enough that every piece leaves the viewport whatever its
+				// starting position.
+				const reach = Math.hypot(innerWidth, innerHeight);
+
+				for (const piece of found.shards) {
+					const el = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+					el.setAttribute('points', piece.points.map((p) => `${p.x},${p.y}`).join(' '));
+					el.setAttribute('fill', piece.color);
+					el.classList.add('shard');
+					shards.appendChild(el);
+
+					let ax = piece.centroid.x - found.centroid.x;
+					let ay = piece.centroid.y - found.centroid.y;
+					let len = Math.hypot(ax, ay);
+					if (len < 1) {
+						const angle = Math.random() * Math.PI * 2;
+						ax = Math.cos(angle);
+						ay = Math.sin(angle);
+						len = 1;
+					}
+					const distance = reach * (0.8 + Math.random() * 0.5);
+					const spin = (Math.random() * 2 - 1) * 400;
+
+					el.animate(
+						[
+							{ transform: 'translate(0px, 0px) rotate(0deg)' },
+							{
+								transform: `translate(${(ax / len) * distance}px, ${(ay / len) * distance}px) rotate(${spin}deg)`,
+							},
+						],
+						{
+							duration: 1700 + Math.random() * 700,
+							/*
+							 * Eased out, but only gently. A sharper curve is more
+							 * physical and was tried first — it covered most of the
+							 * distance in the opening fraction of a second, so the
+							 * pieces were gone before the eye caught them. The flight
+							 * has to stay legible for its whole length.
+							 */
+							easing: 'cubic-bezier(.25, .55, .4, 1)',
+							delay: Math.random() * 130,
+							fill: 'forwards',
+						},
+					);
+				}
+			}
 
 			function place() {
 				if (!canvas || !tess || !gate || !shape || !label) return;
@@ -267,6 +362,7 @@ import '../styles/tokens.css';
 				lastCentroid = found.centroid;
 
 				shape.setAttribute('points', found.polygon.map((p) => `${p.x},${p.y}`).join(' '));
+				shatter(found);
 
 				// Keep the label off the very edge, where it would be clipped.
 				const pad = 80;
@@ -298,6 +394,7 @@ import '../styles/tokens.css';
 				if (!tess || !gate) return;
 				window.clearTimeout(idleTimer);
 				gate.classList.remove('on');
+				shards?.replaceChildren();
 				shown = false;
 				tess.resume();
 				// Leave the node in place until the fade finishes.
@@ -322,7 +419,7 @@ import '../styles/tokens.css';
 			// Background tabs suspend requestAnimationFrame, so the freeze→place
 			// chain cannot run under automated capture. Expose the steps directly.
 			if (import.meta.env.DEV) {
-				(window as any).__gate = { place, freeze, thaw, pickRegion, thresholds, canvas };
+				(window as any).__gate = { place, freeze, thaw, shatter, pickRegion, thresholds, canvas, gate, shape, label };
 			}
 		</script>
 	</body>

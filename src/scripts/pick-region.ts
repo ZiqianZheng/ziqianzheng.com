@@ -15,6 +15,15 @@
  */
 
 export type Point = { x: number; y: number };
+
+/** One flying piece of a shattered region. */
+export type Shard = {
+	points: [Point, Point, Point];
+	centroid: Point;
+	/** Colour sampled from the canvas under this piece, as `rgb(r, g, b)`. */
+	color: string;
+};
+
 export type FoundRegion = {
 	/** Outline in CSS pixels, relative to the canvas. */
 	polygon: Point[];
@@ -25,7 +34,12 @@ export type FoundRegion = {
 	coverage: number;
 	/** How many primitives were merged. */
 	parts: number;
+	/** The region broken into triangular pieces, each carrying its own colour. */
+	shards: Shard[];
 };
+
+/** How many pieces a region breaks into. */
+const SHARD_COUNT = 14;
 
 /**
  * Width to sample at. Larger than strictly needed for the flood fill, because
@@ -364,6 +378,74 @@ function simplifyTo(points: Point[], limit: number): Point[] {
 	return result;
 }
 
+/**
+ * Break a region into triangular pieces, each carrying the colour of the canvas
+ * beneath it.
+ *
+ * Fans from the centroid first, which gives one triangle per edge of the
+ * outline, then repeatedly splits whichever piece is largest across its longest
+ * edge until there are enough. Splitting the largest keeps the pieces roughly
+ * even in size — fanning alone leaves one huge shard wherever the outline has a
+ * long edge, and that one piece dominates the whole effect.
+ */
+function makeShards(
+	polygon: Point[],
+	centroid: Point,
+	img: ImageData,
+	scale: number,
+	count: number,
+): Shard[] {
+	const tris: [Point, Point, Point][] = polygon.map((p, i) => [
+		centroid,
+		p,
+		polygon[(i + 1) % polygon.length],
+	]);
+
+	const area = (t: [Point, Point, Point]) =>
+		Math.abs((t[1].x - t[0].x) * (t[2].y - t[0].y) - (t[2].x - t[0].x) * (t[1].y - t[0].y)) / 2;
+
+	// Bounded: a degenerate triangle can never be split into anything larger, so
+	// without a ceiling this could spin.
+	for (let guard = 0; tris.length < count && guard < count * 3; guard++) {
+		let biggest = 0;
+		for (let i = 1; i < tris.length; i++) if (area(tris[i]) > area(tris[biggest])) biggest = i;
+		const t = tris[biggest];
+		if (area(t) < 1) break;
+
+		let edge: [number, number, number] = [0, 1, 2];
+		let longest = -1;
+		for (const e of [
+			[0, 1, 2],
+			[1, 2, 0],
+			[2, 0, 1],
+		] as [number, number, number][]) {
+			const len = Math.hypot(t[e[0]].x - t[e[1]].x, t[e[0]].y - t[e[1]].y);
+			if (len > longest) {
+				longest = len;
+				edge = e;
+			}
+		}
+		const [a, b, c] = edge;
+		const mid = { x: (t[a].x + t[b].x) / 2, y: (t[a].y + t[b].y) / 2 };
+		tris.splice(biggest, 1, [t[a], mid, t[c]], [mid, t[b], t[c]]);
+	}
+
+	return tris.map((points) => {
+		const c = {
+			x: (points[0].x + points[1].x + points[2].x) / 3,
+			y: (points[0].y + points[1].y + points[2].y) / 3,
+		};
+		const sx = Math.min(img.width - 1, Math.max(0, Math.round(c.x / scale)));
+		const sy = Math.min(img.height - 1, Math.max(0, Math.round(c.y / scale)));
+		const o = (sy * img.width + sx) * 4;
+		return {
+			points,
+			centroid: c,
+			color: `rgb(${img.data[o]}, ${img.data[o + 1]}, ${img.data[o + 2]})`,
+		};
+	});
+}
+
 export type PickOptions = {
 	random?: () => number;
 	/**
@@ -486,6 +568,7 @@ export function pickRegion(canvas: HTMLCanvasElement, options: PickOptions = {})
 			color: `rgb(${data[o]}, ${data[o + 1]}, ${data[o + 2]})`,
 			coverage: pixels.length / total,
 			parts,
+			shards: makeShards(polygon, centroid, img, scale, SHARD_COUNT),
 		});
 	}
 
