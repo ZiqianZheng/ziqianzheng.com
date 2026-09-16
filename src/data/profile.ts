@@ -37,7 +37,13 @@ export type Education = {
 	school: string;
 	from: string;
 	to: string;
-	note?: string;
+	/**
+	 * A programme sitting alongside the degree — an honours track, say. Kept
+	 * structured rather than as one string: the About page shows only the label,
+	 * and the dates were previously being chopped off with a `split(',')` that
+	 * would break the moment a label contained a comma.
+	 */
+	note?: { label: string; url?: string; from?: string; to?: string };
 };
 
 export const education: Education[] = [
@@ -61,7 +67,12 @@ export const education: Education[] = [
 		school: "Xi'an Jiaotong University",
 		from: 'Sep 2015',
 		to: 'Jun 2019',
-		note: 'Special Class for the Gifted Young, Sep 2013 – Jul 2015',
+		note: {
+			label: 'Special Class for the Gifted Young',
+			url: "https://en.wikipedia.org/wiki/Special_Class_for_the_Gifted_Young#Xi'an_Jiaotong_University",
+			from: 'Sep 2013',
+			to: 'Jul 2015',
+		},
 	},
 ];
 

@@ -57,7 +57,11 @@ import '../styles/tokens.css';
 								<div>
 									<p class="primary">{e.field}</p>
 									<p class="secondary">{e.school}</p>
-									{e.note && <p class="secondary">{e.note.split(',')[0]}</p>}
+									{e.note && (
+										<p class="secondary">
+											{e.note.url ? <a href={e.note.url}>{e.note.label}</a> : e.note.label}
+										</p>
+									)}
 								</div>
 							</li>
 						))
