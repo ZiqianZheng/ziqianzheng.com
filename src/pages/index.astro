@@ -167,6 +167,15 @@ import '../styles/tokens.css';
 				width: 100%;
 				height: 100%;
 				overflow: visible;
+				/*
+				 * Needed for the pieces to foreshorten as they turn out of plane —
+				 * without it a rotateX is just an affine squash with no depth.
+				 * Deliberately distant: a shorter focal length skews pieces far
+				 * from the centre so hard they look sheared rather than turned.
+				 * On an ancestor rather than per-element; `perspective()` inline
+				 * projects SVG shapes from the wrong origin and degenerates them.
+				 */
+				perspective: 1600px;
 			}
 			/*
 			 * The hole left behind once the pieces detach. Solid black and
@@ -199,14 +208,6 @@ import '../styles/tokens.css';
 				/* Rotate about each piece's own centre, not the SVG origin. */
 				transform-box: fill-box;
 				transform-origin: center;
-				/*
-				 * A piece cut from the artwork is the same colour as the artwork,
-				 * so without an edge it is invisible until it clears the mosaic.
-				 * The dark outline separates it the instant it starts moving.
-				 */
-				stroke: rgba(6, 14, 8, 0.85);
-				stroke-width: 1.25;
-				stroke-linejoin: round;
 			}
 
 			@media (prefers-reduced-motion: reduce) {
@@ -316,14 +317,34 @@ import '../styles/tokens.css';
 						len = 1;
 					}
 					const distance = reach * (0.8 + Math.random() * 0.5);
-					// A slow tumble, not a spin. Debris turns lazily.
-					const spin = (Math.random() * 2 - 1) * 110;
+					/*
+					 * Tumble on all three axes, not just the one facing the viewer.
+					 * Turning out of plane is what makes a piece narrow to an edge
+					 * and open out again as it goes — rotating only in the screen
+					 * plane keeps every piece the same size throughout, which reads
+					 * as a sticker being spun rather than an object turning.
+					 *
+					 * Ranges are wide enough that most pieces pass through at least
+					 * one near-edge-on moment during the flight.
+					 */
+					// Magnitude then sign, rather than a uniform ±range: a uniform
+					// draw hands some pieces a rotation near zero, and those never
+					// visibly turn at all — measured, four of fourteen just slid
+					// across the screen unchanged. A floor guarantees every piece
+					// passes near edge-on at least once.
+					const turn = (min: number, max: number) =>
+						(Math.random() < 0.5 ? -1 : 1) * (min + Math.random() * (max - min));
+					const tumbleX = turn(95, 260);
+					const tumbleY = turn(95, 260);
+					const spin = turn(40, 140);
 
 					const flight = el.animate(
 						[
-							{ transform: 'translate(0px, 0px) rotate(0deg)' },
+							{ transform: 'translate(0px, 0px) rotateX(0deg) rotateY(0deg) rotateZ(0deg)' },
 							{
-								transform: `translate(${(ax / len) * distance}px, ${(ay / len) * distance}px) rotate(${spin}deg)`,
+								transform:
+									`translate(${(ax / len) * distance}px, ${(ay / len) * distance}px)` +
+									` rotateX(${tumbleX}deg) rotateY(${tumbleY}deg) rotateZ(${spin}deg)`,
 							},
 						],
 						{
