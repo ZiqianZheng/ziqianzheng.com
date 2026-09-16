@@ -64,12 +64,36 @@ dig +short @1.1.1.1 _github-pages-challenge-ziqianzheng.ziqianzheng.com TXT
 
 ## HTTPS
 
-Certificates are issued by GitHub via Let's Encrypt automatically, but only *after*
-DNS resolves to GitHub — typically within an hour of propagation. Until then the
-Pages settings page shows a certificate error, which is expected rather than a
-misconfiguration.
+Live, via Let's Encrypt, covering both `www.ziqianzheng.com` and the apex. GitHub
+renews it automatically. `https_enforced` is on, so `http://` 301s to `https://`
+and the apex 301s to `www`.
 
-Once the padlock appears, enforce HTTPS:
+### If a certificate ever fails to appear — read this first
+
+**GitHub requests a certificate only when the custom domain is saved *and*
+validates at that moment, and it never retries on its own.**
+
+That is a trap when DNS and the domain are configured close together: if the
+domain is saved before DNS has propagated to GitHub's own resolvers, validation
+fails, no certificate is requested, and the situation never repairs itself — even
+once DNS becomes correct and GitHub's health check goes fully green. It cost
+about five hours here.
+
+The symptom is specific: `gh api repos/.../pages` shows **no `https_certificate`
+key at all** — not pending, not errored, absent — while
+`gh api repos/.../pages/health` reports `is_valid: true` and
+`is_https_eligible: true`. Eligible but never requested.
+
+Neither of these re-triggers it, so don't bother:
+
+- re-`PUT`ting the same `cname` (no change, so nothing happens);
+- a fresh deployment, even though the artifact contains `CNAME`.
+
+What works is genuinely removing and re-adding the domain, easiest in the UI at
+*Settings → Pages → Custom domain*: clear the field, **Save**, re-enter it,
+**Save**. The certificate appeared within a minute.
+
+Then enforce HTTPS:
 
 ```sh
 gh api -X PUT repos/ZiqianZheng/ziqianzheng.com/pages -F https_enforced=true
