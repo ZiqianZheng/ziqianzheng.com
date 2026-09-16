@@ -11,7 +11,7 @@ The live site is two pages:
 
 | Route | What it is |
 |---|---|
-| `/` | Full-screen tessellation. Moving the pointer freezes it, highlights a region and offers "about me". |
+| `/` | Full-screen tessellation. Moving the pointer freezes it; a region shatters and drifts away, leaving a black void labelled "about". |
 | `/about` | A calm, static page: intro, education, links, third-party credit. |
 
 Everything else in `src/` is either supporting code or parked. See **Where things stand**
@@ -92,10 +92,11 @@ else in the frontmatter — slugs must be written out inside it.
 
 In `src/pages/index.astro`, with region selection in `src/scripts/pick-region.ts`.
 
-Pointer moves → the scene freezes → a region is chosen, outlined, and labelled → clicking
-it or the label opens `/about` → three seconds of stillness resumes the zoom.
+Pointer moves → the scene freezes → a region shatters, its pieces drifting off screen →
+the solid black void left behind is labelled "about" and is the click target → three
+seconds of stillness resumes the zoom.
 
-Two things worth knowing before changing it:
+Mechanics worth knowing before changing any of it:
 
 - **Freezing** works by `public/tess/config.js` reporting a zooming speed of `0`. The
   engine re-reads that value every frame and multiplies it by the frame delta, so the
@@ -105,6 +106,13 @@ Two things worth knowing before changing it:
   neighbours breadth-first until the region is big enough, traces the outline and
   simplifies it. This requires the WebGL context to have `preserveDrawingBuffer`, which
   `config.js` secures by claiming the context *before* the engine asks for it.
+- **Pieces outlive the freeze.** A flight runs far longer than the idle timeout, so each
+  piece owns its lifetime, coasts on after the scene resumes beneath it, and removes
+  itself once past the edge. Cutting them when the scene resumed looked like a bug.
+- **The first 1.5s is ignored.** The scene opens as a single root primitive and subdivides
+  over following frames; freezing immediately catches a handful of enormous triangles all
+  in one colour, and those then drift, vast and monochrome, over a scene that has since
+  become a fine mosaic.
 
 Hard-won details in `pick-region.ts`, all of which caused real bugs:
 
@@ -120,8 +128,41 @@ Hard-won details in `pick-region.ts`, all of which caused real bugs:
 - **Outline tracing must be bounded.** A ragged boundary can produce a six-figure point
   list, and running Douglas–Peucker over that repeatedly locks the browser.
 - **Simplify iteratively, on the previous result** — not on the original outline each pass.
+- **Cut the closed outline at its two furthest-apart points.** Douglas–Peucker keeps both
+  endpoints of whatever it is given, so cutting at an arbitrary index nails two vertices to
+  meaningless mid-edge points.
 - Alignment with the underlying triangles is measurable: polygon area over true region
   area, where 1.000 is exact. Currently 0.975–1.011.
+
+And in the shatter itself:
+
+- **Travel and tumble share one duration**, so they cannot be dialled independently.
+  Slower travel means a longer flight; a faster tumble then means raising the rotation by
+  more than the duration grew.
+- **Speed belongs in the in-plane spin.** A piece near perpendicular to the screen is a
+  sliver, so fast out-of-plane rotation leaves most pieces invisible at any instant and the
+  field reads as sparse and flickering. Z can be as quick as you like; keep X and Y
+  moderate, enough that the area still changes.
+- **Rotation needs a floor.** Drawn uniformly across a ±range, some pieces get a rotation
+  near zero and never visibly turn — measured, four of fourteen simply slid across
+  unchanged. Draw the magnitude, then the sign.
+- **Linear easing, not ease-out.** Every easing curve implies drag; this is debris in
+  vacuum.
+- **3D needs perspective on an ancestor** (it is on the `<svg>`). Without it a `rotateX` is
+  an affine squash with no depth, and an inline `perspective()` projects SVG shapes from
+  the wrong origin and degenerates them.
+
+#### Tuning knobs
+
+| What | Where |
+|---|---|
+| Flight duration, rotation amounts, piece delay | `shatter()` in `index.astro` |
+| Idle timeout, intro hold | `IDLE_MS`, `INTRO_MS` in `index.astro` |
+| Piece count floor/ceiling | `MIN_SHARDS`, `MAX_SHARDS` in `pick-region.ts` |
+| Region size, shape, corner budget | `thresholds()`, `MAX_VERTICES` in `pick-region.ts` |
+
+The ceiling on pieces is about animation cost, not looks: every piece is an element
+carrying its own transform for the whole flight, and ~96 of them run at once.
 
 ### Third-party renderer — do not hand-edit
 
@@ -157,7 +198,8 @@ Read that before touching anything domain-related.
 
 ## Where things stand
 
-**Done:** domain, HTTPS, deploy pipeline, arrival screen, interaction, about page.
+**Done:** domain, HTTPS, deploy pipeline, arrival screen, the shatter interaction, about
+page. Nothing is known to be broken.
 
 **Waiting on Ziqian:**
 
@@ -168,12 +210,30 @@ Read that before touching anything domain-related.
 
 **Ready to build when asked:** publications, teaching and writing pages. The content is
 already structured in `profile.ts` — 11 publications with authors, venues and links — and
-renders nowhere. Use the drafts mechanism.
+renders nowhere. Use the drafts mechanism so nothing half-finished reaches the domain.
 
 **Known gaps:**
 
-- `prefers-reduced-motion` is unhandled on the arrival screen; the zoom runs regardless.
-- The tessellation has never been opened on a real phone.
-- The blog is parked in `src/archive/` with the Astro template's sample posts. Restoring
-  it means moving `blog/` and `rss.xml.js` back into `src/pages/` and putting real posts
-  in `src/content/blog/`.
+- `prefers-reduced-motion` is honoured by the shatter (it skips the flight and shows the
+  void) but not by the tessellation itself, which zooms regardless.
+- **None of this has been opened on a phone.** The shatter runs ~96 simultaneously
+  animated elements, which is the most likely thing to struggle there. Frame rate cannot be
+  measured headlessly, so it needs a real device.
+- The blog is parked in `src/archive/` with the Astro template's sample posts. Restoring it
+  means moving `blog/` and `rss.xml.js` back into `src/pages/` and putting real posts in
+  `src/content/blog/`.
+
+## How this project has gone
+
+Worth knowing, because it shapes what good work looks like here.
+
+The visual direction changed twice before landing — a Manifold Garden flythrough, then
+Menger-sponge fractal navigation, now the tessellation — and the arrival interaction went
+through six rounds of tuning. Ziqian iterates by looking, and his observations are precise
+and correct: he spotted that highlight polygons were not aligning to triangle edges, that
+fewer pieces were flying out than the area contained, and that the first shatter's colours
+matched nothing. Each was a real bug.
+
+So: keep superseded work rather than deleting it, expect revision, and when he reports
+something looking wrong, measure before explaining it away. Several of those reports
+uncovered causes quite different from the obvious guess.
