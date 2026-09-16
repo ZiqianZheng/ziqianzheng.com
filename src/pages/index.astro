@@ -344,16 +344,37 @@ import '../styles/tokens.css';
 					 * Ranges are wide enough that most pieces pass through at least
 					 * one near-edge-on moment during the flight.
 					 */
-					// Magnitude then sign, rather than a uniform ±range: a uniform
-					// draw hands some pieces a rotation near zero, and those never
-					// visibly turn at all — measured, four of fourteen just slid
-					// across the screen unchanged. A floor guarantees every piece
-					// passes near edge-on at least once.
+					/*
+					 * Magnitude then sign, rather than a uniform ±range: a uniform
+					 * draw hands some pieces a rotation near zero, and those never
+					 * visibly turn at all — measured, four of fourteen just slid
+					 * across the screen unchanged. A floor guarantees every piece
+					 * passes near edge-on at least once.
+					 *
+					 * These are totals for the whole flight, so travel and tumble
+					 * share one duration and cannot be dialled independently.
+					 * Slower travel therefore means a longer flight, and a faster
+					 * tumble means raising these by more than the duration grew —
+					 * several full turns rather than a fraction of one.
+					 */
 					const turn = (min: number, max: number) =>
 						(Math.random() < 0.5 ? -1 : 1) * (min + Math.random() * (max - min));
-					const tumbleX = turn(95, 260);
-					const tumbleY = turn(95, 260);
-					const spin = turn(40, 140);
+					/*
+					 * The speed lives in the in-plane spin, and the out-of-plane
+					 * tumble stays moderate on purpose.
+					 *
+					 * Turning all three axes fast was tried and looks wrong: a piece
+					 * near perpendicular to the screen is a sliver, so several full
+					 * turns out of plane means most pieces are invisible at any
+					 * given instant and the debris field reads as sparse and
+					 * flickering. Spinning in-plane never hides anything, so it can
+					 * be as quick as you like, while a gentler X and Y keeps the
+					 * area changing enough to read as solid objects rather than
+					 * cut-outs.
+					 */
+					const tumbleX = turn(160, 400);
+					const tumbleY = turn(160, 400);
+					const spin = turn(720, 2160);
 
 					const flight = el.animate(
 						[
@@ -365,7 +386,7 @@ import '../styles/tokens.css';
 							},
 						],
 						{
-							duration: 13000 + Math.random() * 7000,
+							duration: 21000 + Math.random() * 11000,
 							/*
 							 * Linear, deliberately. Every eased curve implies drag,
 							 * and this should read as debris in vacuum: struck once,
