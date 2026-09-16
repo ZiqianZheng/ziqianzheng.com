@@ -269,6 +269,23 @@ import '../styles/tokens.css';
 			const IDLE_MS = 3000;
 
 			/**
+			 * The scene is ignored for its first moments, however much the pointer
+			 * moves.
+			 *
+			 * It begins as a single huge primitive and subdivides over the frames
+			 * that follow, so freezing immediately catches it as a handful of
+			 * enormous triangles all in the root colour. The pieces that fly off
+			 * then match nothing — and since a flight outlasts the idle timeout by
+			 * far, they are still drifting, vast and monochrome, long after the
+			 * scene beneath has become a fine mosaic.
+			 *
+			 * Letting it run first costs a moment nobody notices and removes the
+			 * only case where the debris looks unrelated to the artwork.
+			 */
+			const INTRO_MS = 1500;
+			const openedAt = performance.now();
+
+			/**
 			 * Live query, not a one-off read: the setting can change mid-session,
 			 * and honouring it matters here because the shatter throws a dozen
 			 * spinning shapes across the whole viewport.
@@ -402,6 +419,7 @@ import '../styles/tokens.css';
 
 			function freeze() {
 				if (!tess) return;
+				if (performance.now() - openedAt < INTRO_MS) return;
 				if (!shown) {
 					tess.pause();
 					// Two frames: one for the engine to render with zoom at zero,
