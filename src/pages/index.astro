@@ -169,30 +169,24 @@ import '../styles/tokens.css';
 				overflow: visible;
 			}
 			/*
-			 * The hole left behind once the piece has flown off. Dark rather than
-			 * outlined, so the region reads as *removed* from the artwork — which
-			 * is what makes it legible as a way in — and it stays put as the
-			 * click target after the shards are gone.
+			 * The hole left behind once the pieces detach. Solid black and
+			 * unoutlined: the area is not a shape drawn on the artwork, it is
+			 * artwork that is no longer there. It also stays put as the click
+			 * target long after the debris has gone.
 			 */
 			#gate-shape {
-				fill: rgba(4, 10, 6, 0.86);
-				stroke: rgba(250, 244, 229, 0.75);
-				stroke-width: 1.5;
-				stroke-linejoin: round;
-				paint-order: stroke;
+				fill: #000;
 				pointer-events: auto;
 				cursor: pointer;
 				opacity: 0;
-				animation: gate-open 900ms ease-out forwards;
+				/* Quick: the moment the pieces detach, nothing is there any more. */
+				animation: gate-open 420ms ease-out forwards;
 			}
 			@keyframes gate-open {
-				/* Held back just long enough that the pieces are seen leaving before
-				   the hole reads, then opened well before they land. */
-				0%,
-				8% {
+				from {
 					opacity: 0;
 				}
-				100% {
+				to {
 					opacity: 1;
 				}
 			}
@@ -240,11 +234,6 @@ import '../styles/tokens.css';
 					0 2px 26px rgba(12, 26, 16, 0.8);
 				white-space: nowrap;
 			}
-			#gate-label::after {
-				content: ' →';
-				opacity: 0.7;
-			}
-
 			@media (prefers-reduced-motion: reduce) {
 				#gate {
 					transition: none;
@@ -327,9 +316,10 @@ import '../styles/tokens.css';
 						len = 1;
 					}
 					const distance = reach * (0.8 + Math.random() * 0.5);
-					const spin = (Math.random() * 2 - 1) * 400;
+					// A slow tumble, not a spin. Debris turns lazily.
+					const spin = (Math.random() * 2 - 1) * 110;
 
-					el.animate(
+					const flight = el.animate(
 						[
 							{ transform: 'translate(0px, 0px) rotate(0deg)' },
 							{
@@ -337,19 +327,31 @@ import '../styles/tokens.css';
 							},
 						],
 						{
-							duration: 1700 + Math.random() * 700,
+							duration: 7000 + Math.random() * 4500,
 							/*
-							 * Eased out, but only gently. A sharper curve is more
-							 * physical and was tried first — it covered most of the
-							 * distance in the opening fraction of a second, so the
-							 * pieces were gone before the eye caught them. The flight
-							 * has to stay legible for its whole length.
+							 * Linear, deliberately. Every eased curve implies drag,
+							 * and this should read as debris in vacuum: struck once,
+							 * then coasting at whatever speed the impact gave it.
+							 * Ease-out made it look like the pieces were slowing
+							 * against air.
 							 */
-							easing: 'cubic-bezier(.25, .55, .4, 1)',
-							delay: Math.random() * 130,
+							easing: 'linear',
+							// A brief spread, since an impact does not free every
+							// piece at the same instant.
+							delay: Math.random() * 320,
 							fill: 'forwards',
 						},
 					);
+
+					/*
+					 * Each piece owns its own lifetime. The flight now outlasts the
+					 * three-second idle timeout by some margin, and cutting the
+					 * debris the instant the scene resumed looked like a bug — so
+					 * the pieces coast on regardless and retire themselves once they
+					 * are past the edge. Starting a new shatter still clears them,
+					 * which cancels these and rejects the promise; nothing to do.
+					 */
+					flight.finished.then(() => el.remove()).catch(() => {});
 				}
 			}
 
@@ -394,7 +396,6 @@ import '../styles/tokens.css';
 				if (!tess || !gate) return;
 				window.clearTimeout(idleTimer);
 				gate.classList.remove('on');
-				shards?.replaceChildren();
 				shown = false;
 				tess.resume();
 				// Leave the node in place until the fade finishes.
