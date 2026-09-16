@@ -52,14 +52,14 @@ export const education: Education[] = [
 		field: 'Industrial and Systems Engineering',
 		school: 'University of Wisconsin–Madison',
 		from: 'Sep 2019',
-		to: 'present',
+		to: 'Jun 2024',
 	},
 	{
 		degree: 'M.S.',
 		field: 'Statistics',
 		school: 'University of Wisconsin–Madison',
 		from: 'Mar 2023',
-		to: 'present',
+		to: 'Dec 2023',
 	},
 	{
 		degree: 'B.Eng.',
@@ -70,8 +70,6 @@ export const education: Education[] = [
 		note: {
 			label: 'Special Class for the Gifted Young',
 			url: "https://en.wikipedia.org/wiki/Special_Class_for_the_Gifted_Young#Xi'an_Jiaotong_University",
-			from: 'Sep 2013',
-			to: 'Jul 2015',
 		},
 	},
 ];
