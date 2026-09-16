@@ -38,8 +38,18 @@ export type FoundRegion = {
 	shards: Shard[];
 };
 
-/** How many pieces a region breaks into. */
-const SHARD_COUNT = 14;
+/**
+ * How many pieces a region breaks into.
+ *
+ * Scaled to the number of primitives actually merged, rather than fixed: a
+ * constant count made a region built from fifty triangles fly apart as a dozen
+ * large slabs, and the mismatch against what is plainly on screen is obvious.
+ * The floor keeps a coarse region from breaking into two or three pieces; the
+ * ceiling is about animation cost, since every piece is an element with its own
+ * transform running for the whole flight.
+ */
+const MIN_SHARDS = 12;
+const MAX_SHARDS = 96;
 
 /**
  * Width to sample at. Larger than strictly needed for the flood fill, because
@@ -568,7 +578,7 @@ export function pickRegion(canvas: HTMLCanvasElement, options: PickOptions = {})
 			color: `rgb(${data[o]}, ${data[o + 1]}, ${data[o + 2]})`,
 			coverage: pixels.length / total,
 			parts,
-			shards: makeShards(polygon, centroid, img, scale, SHARD_COUNT),
+			shards: makeShards(polygon, centroid, img, scale, clamp(parts, MIN_SHARDS, MAX_SHARDS)),
 		});
 	}
 
