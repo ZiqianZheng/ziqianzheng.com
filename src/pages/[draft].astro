@@ -2,28 +2,36 @@
 /**
  * Drafts — reachable while developing, never published.
  *
- * `getStaticPaths` returns nothing in a production build, so these URLs simply
- * do not exist on the live site; `astro dev` resolves the same function and
- * serves them normally. That keeps work-in-progress pages on `main`, editable
- * and reviewable at localhost, without a branch to remember or a half-finished
- * page appearing on the domain.
+ * `getStaticPaths` returns nothing in a production build, so a draft's URL
+ * simply does not exist on the live site; `astro dev` resolves the same
+ * function and serves it normally. That keeps work-in-progress pages on `main`,
+ * editable and reviewable at localhost, without a branch to remember or a
+ * half-finished page appearing on the domain.
  *
- * To publish a draft: move its file from `src/drafts/` into `src/pages/`, drop
- * it from both lists below, and remove whichever `import.meta.env.DEV` guard
- * hides the links to it (currently in `index.astro`).
+ * Currently empty — the about page graduated to `src/pages/`. Kept in place for
+ * the pages still to come (research, writing, teaching).
+ *
+ * To start a draft:
+ *   1. put the page in `src/drafts/` (same depth as `src/pages/`, so its
+ *      relative imports carry over unchanged);
+ *   2. import it here and add it to `drafts` and to `getStaticPaths`;
+ *   3. guard any link *to* it with `import.meta.env.DEV`, or the live site
+ *      offers a 404.
+ *
+ * To publish one, undo those three steps.
+ *
+ * Note that Astro hoists `getStaticPaths` into its own scope, so it cannot read
+ * anything declared elsewhere in this frontmatter — slugs must be written out
+ * inside it rather than derived from `drafts`.
  */
-import About from '../drafts/about.astro';
 
 export function getStaticPaths() {
-	// Astro hoists this function into its own scope, so it cannot reference
-	// anything declared elsewhere in the frontmatter — the slugs have to be
-	// written out here rather than derived from the component map below.
 	if (!import.meta.env.DEV) return [];
-	return [{ params: { draft: 'about' } }];
+	return [] as { params: { draft: string } }[];
 }
 
-const drafts = { about: About } as const;
-const Draft = drafts[Astro.params.draft as keyof typeof drafts];
+const drafts: Record<string, never> = {};
+const Draft = drafts[Astro.params.draft as string];
 
 if (!Draft) {
 	return new Response(null, { status: 404 });

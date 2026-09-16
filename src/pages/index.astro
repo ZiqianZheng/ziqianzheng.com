@@ -11,15 +11,6 @@
  * the moment it executes, so neither is deferred and both sit at end of body.
  */
 import '../styles/tokens.css';
-
-/**
- * The about page is still a draft (`src/drafts/about.astro`, served only by
- * `astro dev`). Until it ships, the live arrival screen must not offer a way in
- * — a highlighted triangle promising "about me" and then 404ing is worse than
- * no triangle at all. So the whole gate, and the keyboard link beside the
- * wordmark, exist only while developing.
- */
-const SHOW_ABOUT = import.meta.env.DEV;
 ---
 
 <!doctype html>
@@ -43,18 +34,10 @@ const SHOW_ABOUT = import.meta.env.DEV;
 			outlined and named. Purely decorative for assistive tech — the real
 			link is the always-present one below, which is also the no-JS path.
 		-->
-		{
-			SHOW_ABOUT && (
-				<div id="gate" hidden>
-					<svg id="gate-svg" aria-hidden="true">
-						<polygon id="gate-shape" />
-					</svg>
-					<a id="gate-label" href="/about">
-						about me
-					</a>
-				</div>
-			)
-		}
+		<div id="gate" hidden>
+			<svg id="gate-svg" aria-hidden="true"><polygon id="gate-shape"></polygon></svg>
+			<a id="gate-label" href="/about">about me</a>
+		</div>
 
 		<!--
 			The canvas carries no text, so this is the page's only real content.
@@ -65,11 +48,7 @@ const SHOW_ABOUT = import.meta.env.DEV;
 			<h1>Ziqian Zheng</h1>
 			<p>a wanderer</p>
 			{/* Reachable by keyboard, screen readers, and with JS disabled. */}
-			{SHOW_ABOUT && (
-				<a class="mark-link" href="/about">
-					about me
-				</a>
-			)}
+			<a class="mark-link" href="/about">about me</a>
 		</header>
 
 		<style is:global>
